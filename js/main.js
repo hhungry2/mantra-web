@@ -24,6 +24,12 @@ import { TouchControls } from './touch.js';
 const SHOP_MODIFIERS = new Set([772, 775, 4868, 5080]);
 const SHOP_TILE_BASE = 1030;
 
+// screen index -> { id, tileX, tileY }. Empty until boss placement is decoded.
+const BOSS_SCREENS = new Map();
+
+// Fire, Earth, Water, Air, Force.
+const MANTRA_CODES = [100, 101, 102, 103, 104];
+
 class Game {
   constructor(assets, canvas) {
     this.world = new World(assets);
@@ -87,12 +93,13 @@ class Game {
     this.screen = this.world.screen(index);
     this.enemies = spawnScreen(this.screen, this.templates, this.defeatedMasks[index]);
 
-    // Spawn Boss on specific boss screens
-    if (index === 255 && !(this.defeatedMasks[index] & 1)) {
-      this.enemies.push(new Boss(7, 8, 4)); // Final Boss Zarin
-    } else if (index % 32 === 0 && index !== 0 && !(this.defeatedMasks[index] & 1)) {
-      const bossType = Math.floor(index / 32) % 8;
-      this.enemies.push(new Boss(bossType, 8, 4));
+    // No bosses yet. Where they belong is not in anything we can read: the
+    // enemy templates only reference the 32x32 sprite sheet, and the one screen
+    // with its own area id is a solid block of filler. Guessing put them on
+    // blank screens and inside walls, so they stay out until #9 finds them.
+    const boss = BOSS_SCREENS.get(index);
+    if (boss && !(this.defeatedMasks[index] & 1)) {
+      this.enemies.push(new Boss(boss.id, boss.tileX, boss.tileY));
     }
 
     this.projectiles = [];
@@ -235,10 +242,6 @@ class Game {
             this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
           } else if (enemy.isBoss) {
             this.defeatedMasks[this.screenIndex] |= 1;
-            if (enemy.bossId === 7) {
-              this.victory = true;
-              this.audio.play('fanfare');
-            }
           }
           player.gold += enemy.isBoss ? 200 : 5;
           const xpReward = enemy.isBoss ? 150 : Math.max(5, enemy.hp * 2);
@@ -272,6 +275,13 @@ class Game {
       }
     }
     this.projectiles = this.projectiles.filter((p) => !p.dead);
+
+    // The Ambassador's letters set the quest: find the five Mantras. That is
+    // the one ending the data actually spells out.
+    if (!this.victory && MANTRA_CODES.every((c) => player.inventory.some((i) => i.code === c))) {
+      this.victory = true;
+      this.audio.play('fanfare');
+    }
   }
 
   draw() {
@@ -290,7 +300,7 @@ class Game {
     if (this.player.dead) {
       r.drawBanner(['GAME OVER', 'Press V to Load Game or Reload page']);
     } else if (this.victory) {
-      r.drawBanner(['VICTORY!', 'You have slain Zarin and saved the realm!']);
+      r.drawBanner(['THE FIVE MANTRAS', 'Bring them to Castle Blednock']);
     }
   }
 }

@@ -243,6 +243,15 @@ export class UI {
           }
         });
         actionsEl.appendChild(btn);
+      } else if (item.type === ITEM_TYPES.MESSAGE) {
+        const btn = document.createElement('button');
+        btn.className = 'action-btn';
+        btn.textContent = 'Read';
+        btn.addEventListener('click', () => {
+          this.toggleInventory(false);
+          this.showDialog(item.name, item.desc);
+        });
+        actionsEl.appendChild(btn);
       }
       listEl.appendChild(row);
     });
