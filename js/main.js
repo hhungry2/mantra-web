@@ -17,8 +17,12 @@ import { Boss } from './boss.js';
 import { overlaps } from './collision.js';
 import { Audio } from './audio.js';
 import { UI } from './ui.js';
-import { ITEMS } from './items.js';
+import { initItems, getItem } from './items.js';
 import { TouchControls } from './touch.js';
+
+// Doorways that lead into a shop. 1030..1034 are the shopfront tiles.
+const SHOP_MODIFIERS = new Set([772, 775, 4868, 5080]);
+const SHOP_TILE_BASE = 1030;
 
 class Game {
   constructor(assets, canvas) {
@@ -26,6 +30,8 @@ class Game {
     this.renderer = new Renderer(canvas, assets);
     this.templates = assets.templates;
     this.textMsgs = assets.textMsgs || [];
+    this.stores = assets.stores || [];
+    this.currentStore = null;
     this.input = new Input();
     this.audio = new Audio();
     this.touch = new TouchControls(this.input);
@@ -113,11 +119,11 @@ class Game {
     this.player.baseAttack = d.baseAttack;
     this.player.baseDefense = d.baseDefense;
 
-    if (d.weaponId && ITEMS[d.weaponId]) this.player.weapon = ITEMS[d.weaponId];
-    if (d.armorId && ITEMS[d.armorId]) this.player.armor = ITEMS[d.armorId];
+    if (d.weaponCode) this.player.weapon = getItem(d.weaponCode) || this.player.weapon;
+    if (d.armorCode) this.player.armor = getItem(d.armorCode);
 
-    if (d.inventoryIds) {
-      this.player.inventory = d.inventoryIds.map((id) => ITEMS[id]).filter(Boolean);
+    if (d.inventoryCodes) {
+      this.player.inventory = d.inventoryCodes.map((code) => getItem(code)).filter(Boolean);
     }
 
     if (d.defeatedMasks) {
@@ -129,26 +135,33 @@ class Game {
     this.noteUntil = this.frame + 60;
   }
 
+  // Which of the five shops a doorway leads to is not recorded anywhere we can
+  // read yet: the tile's second field, which would hold the target, survives in
+  // the data as a truncated pointer. Until that is decoded (#11) the shopfront
+  // art picks the shop, so a given door at least always opens the same one.
+  storeAt(tile, mod) {
+    if (!SHOP_MODIFIERS.has(mod)) return null;
+    const index = tile - SHOP_TILE_BASE;
+    if (index < 0 || index >= this.stores.length) return null;
+    return this.stores[index];
+  }
+
   checkInteract() {
     const player = this.player;
     const tx = Math.max(0, Math.min(15, Math.floor(player.x / TILE)));
     const ty = Math.max(0, Math.min(9, Math.floor(player.y / TILE)));
     const mod = this.world.modifierAt(this.screen, tx, ty);
+    const tile = this.world.tileAt(this.screen, tx, ty);
 
-    // Store / Shop modifier
-    if ((mod & 0x300) === 0x300 || mod === 772) {
+    const store = this.storeAt(tile, mod);
+    if (store) {
+      this.currentStore = store;
       this.ui.toggleShop(true);
       return;
     }
 
-    // Signboard / Message trigger
-    if (this.textMsgs.length > 0) {
-      const msgIdx = (this.screenIndex + tx + ty) % this.textMsgs.length;
-      const msg = this.textMsgs[msgIdx];
-      if (msg) {
-        this.ui.showDialog(`Notice`, msg);
-      }
-    }
+    this.hudNote = 'NOTHING HERE';
+    this.noteUntil = this.frame + 25;
   }
 
   checkScreenTransitions() {
@@ -299,13 +312,7 @@ async function boot() {
     return;
   }
 
-  try {
-    const res = await fetch('assets/data/text.json');
-    if (res.ok) assets.textMsgs = await res.json();
-  } catch (e) {
-    assets.textMsgs = [];
-  }
-
+  initItems(assets.items);
   const game = new Game(assets, canvas);
   window.mantra = game; // debug handle
   game.draw();

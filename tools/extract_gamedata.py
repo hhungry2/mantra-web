@@ -18,6 +18,11 @@ Formats worked out from the raw bytes (see docs/PLAN.md for the sizing proof):
                 and column (u16 @46). A slot is empty when the index is 0.
   TmplData      65 enemy templates of 70 bytes; sprite id at @0, hit points
                 at @24, sprite id repeated at @44.
+  ItemData      39 items of 542 bytes: icon id, a length-prefixed name and
+                description in 256 byte fields, then a stat block. See
+                extract_items().
+  StoreData     5 shops, each a greeting in a 256 byte field followed by its
+                stock as (item code, price) pairs. See extract_stores().
 
 Run once; the PNG/JSON output is committed so the browser never sees a .dat.
 """
@@ -192,6 +197,86 @@ def extract_templates(gamedata):
     print(f'enemies.json: {len(templates)} templates')
 
 
+ITEM_BYTES = 542
+ITEM_NAME_AT = 6
+ITEM_DESC_AT = 262
+ITEM_STATS_AT = 518
+
+
+def pascal(data, offset):
+    """Length-prefixed string, the Mac convention the game was written to."""
+    length = data[offset]
+    return data[offset + 1:offset + 1 + length].decode('latin1', 'ignore').replace('\0', '').strip()
+
+
+def extract_items(gamedata):
+    """
+    ItemData: 39 records of 542 bytes.
+
+      @0   u16  icon id (16001+ in IconData; the 15xxx twin is the 16x16 art)
+      @6   pstr name, in a 256 byte field
+      @262 pstr description, in a 256 byte field
+      @518 the stat block:
+           @521 u8 attribute flags  1 weapon, 2 armor, 4 money, 8 message,
+                                    32 ring, 64 carryable, 128 magic
+           @522 u8 defence          @523 u8 attack
+           @530 i8 stamina          @531 u8 heal
+                                    (positive costs stamina to use, negative
+                                     restores it: the fatigue potions are
+                                     -5/-10/-15, the mantras cost 5..50)
+           @533 u8 value            (coins: 1/5/10/50/100, potions: price)
+           @534 u16 icon id again   @536 u16 projectile sprite (2000+)
+
+    Items are keyed by icon id minus 16000, which is how StoreData refers to
+    them.
+    """
+    data = blob(gamedata, 'ItemData')
+    items = []
+    for i in range(len(data) // ITEM_BYTES):
+        rec = data[i * ITEM_BYTES:(i + 1) * ITEM_BYTES]
+        icon = struct.unpack('>H', rec[0:2])[0]
+        items.append({
+            'code': icon - 16000,
+            'icon': icon,
+            'name': pascal(rec, ITEM_NAME_AT),
+            'desc': pascal(rec, ITEM_DESC_AT),
+            'flags': rec[521],
+            'defense': rec[522],
+            'attack': rec[523],
+            'stamina': struct.unpack('>b', rec[530:531])[0],
+            'heal': rec[531],
+            'value': rec[533],
+            'projectile': struct.unpack('>H', rec[536:538])[0],
+        })
+    write_json(os.path.join(DATA_DIR, 'items.json'), {'items': items})
+    print(f'items.json: {len(items)} items')
+
+
+def extract_stores(gamedata):
+    """
+    StoreData: a greeting in a 256 byte field, then u16 stock count and that
+    many (item code, price) pairs. The five records pack end to end and consume
+    the blob exactly.
+    """
+    data = blob(gamedata, 'StoreData')
+    stores = []
+    pos = 0
+    while pos + 258 <= len(data):
+        greeting = pascal(data, pos)
+        body = pos + 256
+        count = struct.unpack('>H', data[body:body + 2])[0]
+        stock = []
+        pos = body + 2
+        for _ in range(count):
+            code, price = struct.unpack('>HH', data[pos:pos + 4])
+            stock.append({'code': code, 'price': price})
+            pos += 4
+        stores.append({'greeting': greeting, 'stock': stock})
+    write_json(os.path.join(DATA_DIR, 'stores.json'), {'stores': stores})
+    print(f'stores.json: {len(stores)} stores, '
+          f'{sum(len(s["stock"]) for s in stores)} entries')
+
+
 def extract_text(gamedata):
     data = blob(gamedata, 'TextData')
     decoded = bytes((b & 0x7f) + 2 if (b & 0x7f) else 0 for b in data)
@@ -200,10 +285,6 @@ def extract_text(gamedata):
     print(f'text.json: {len(messages)} messages')
 
 
-def extract_raw(gamedata, name, filename, key):
-    data = blob(gamedata, name)
-    write_json(os.path.join(DATA_DIR, filename), {key: data.hex()})
-    print(f'{filename}: {len(data)} bytes (undecoded)')
 
 
 def main():
@@ -223,8 +304,8 @@ def main():
     extract_map(gamedata)
     extract_templates(gamedata)
     extract_text(gamedata)
-    extract_raw(gamedata, 'ItemData', 'items.json', 'raw')
-    extract_raw(gamedata, 'StoreData', 'stores.json', 'raw')
+    extract_items(gamedata)
+    extract_stores(gamedata)
 
     print('done')
 

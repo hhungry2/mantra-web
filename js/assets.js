@@ -30,23 +30,32 @@ function readMask(img) {
 }
 
 export async function loadAssets() {
-  const [tiles, maskImage, sprites, bosses, map, gfx, enemies] = await Promise.all([
-    loadImage(BASE + 'tiles.png'),
-    loadImage(BASE + 'tile_masks.png'),
-    loadImage(BASE + 'sprites.png'),
-    loadImage(BASE + 'bosses.png'),
-    loadJSON(BASE + 'data/map.json'),
-    loadJSON(BASE + 'data/gfx.json'),
-    loadJSON(BASE + 'data/enemies.json'),
-  ]);
+  const [tiles, maskImage, sprites, bosses, icons, map, gfx, enemies, items, stores, text] =
+    await Promise.all([
+      loadImage(BASE + 'tiles.png'),
+      loadImage(BASE + 'tile_masks.png'),
+      loadImage(BASE + 'sprites.png'),
+      loadImage(BASE + 'bosses.png'),
+      loadImage(BASE + 'icons32.png'),
+      loadJSON(BASE + 'data/map.json'),
+      loadJSON(BASE + 'data/gfx.json'),
+      loadJSON(BASE + 'data/enemies.json'),
+      loadJSON(BASE + 'data/items.json'),
+      loadJSON(BASE + 'data/stores.json'),
+      loadJSON(BASE + 'data/text.json'),
+    ]);
 
   const tileIndex = new Map(gfx.tiles.ids.map((id, i) => [id, i]));
   const spriteIndex = new Map(gfx.sprites.ids.map((id, i) => [id, i]));
+  const iconIndex = new Map(gfx.icons32.ids.map((id, i) => [id, i]));
 
   return {
-    tiles, sprites, bosses, map, gfx,
+    tiles, sprites, bosses, icons, map, gfx,
     templates: enemies.templates,
+    items: items.items,
+    stores: stores.stores,
+    textMsgs: text,
     mask: readMask(maskImage),
-    tileIndex, spriteIndex,
+    tileIndex, spriteIndex, iconIndex,
   };
 }

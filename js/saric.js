@@ -5,7 +5,7 @@ import {
   SARIC_WALK_A, SARIC_WALK_B, SARIC_SWING_A, SARIC_SWING_B, SWORD_SPRITE,
 } from './config.js';
 import { box } from './collision.js';
-import { ITEMS } from './items.js';
+import { getItem, ITEM_CODES, ITEM_TYPES, FLAG } from './items.js';
 
 const WALK_SPEED = 2;
 const RUN_SPEED = 3.5;
@@ -13,6 +13,8 @@ const STAMINA_MAX = 100;
 const STAMINA_DRAIN = 1.6;
 const STAMINA_REGEN = 0.7;
 const STAMINA_FLOOR = 6;
+// Potions are worth 5..15 fatigue points on a 0..100 bar.
+const STAMINA_PER_POINT = 5;
 
 const SWING_FRAMES = 8;
 const SWING_COOLDOWN = 4;
@@ -43,14 +45,15 @@ export class Saric {
     this.baseAttack = 4;
     this.baseDefense = 0;
 
-    // Inventory & Equipment
-    this.weapon = ITEMS.wooden_sword;
+    // Inventory & Equipment. Saric starts with what the story gives him: the
+    // sword he came ashore with and a couple of potions.
+    this.weapon = getItem(ITEM_CODES.WOODEN_SWORD);
     this.armor = null;
     this.inventory = [
-      ITEMS.wooden_sword,
-      ITEMS.potion,
-      ITEMS.potion,
-    ];
+      getItem(ITEM_CODES.WOODEN_SWORD),
+      getItem(ITEM_CODES.HEALING_POTION),
+      getItem(ITEM_CODES.HEALING_POTION),
+    ].filter(Boolean);
 
     this.walkTimer = 0;
     this.moving = false;
@@ -98,33 +101,29 @@ export class Saric {
     return leveledUp;
   }
 
-  addItem(item) {
-    this.inventory.push(item);
-  }
-
   equip(item) {
-    if (item.type === 'weapon') {
-      this.weapon = item;
-    } else if (item.type === 'armor') {
-      this.armor = item;
-    }
+    if (item.type === ITEM_TYPES.WEAPON) this.weapon = item;
+    else if (item.type === ITEM_TYPES.ARMOR) this.armor = item;
   }
 
+  // A potion's stamina figure is signed: negative restores fatigue, which is
+  // what the Fatigue Restoration and All Salve potions do.
   useItem(item) {
     const idx = this.inventory.indexOf(item);
     if (idx < 0) return false;
-
-    if (item.healFull) {
-      this.hp = this.hpMax;
-      this.stamina = STAMINA_MAX;
-      this.inventory.splice(idx, 1);
-      return true;
-    } else if (item.heal) {
-      this.hp = Math.min(this.hpMax, this.hp + item.heal);
-      this.inventory.splice(idx, 1);
-      return true;
+    if (!item.heal && item.stamina >= 0) return false;
+    if (item.heal) this.hp = Math.min(this.hpMax, this.hp + item.heal);
+    if (item.stamina < 0) {
+      this.stamina = Math.min(STAMINA_MAX, this.stamina - item.stamina * STAMINA_PER_POINT);
     }
-    return false;
+    this.inventory.splice(idx, 1);
+    return true;
+  }
+
+  // Money is never carried: picking a coin up banks its face value.
+  addItem(item) {
+    if (item.flags & FLAG.MONEY) this.gold += item.value;
+    else this.inventory.push(item);
   }
 
   hurt(rawAmount, fromX, fromY) {

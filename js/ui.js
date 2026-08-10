@@ -1,6 +1,6 @@
 // RPG UI Overlays: Dialogue Textbox, Tabbed Inventory Modal, Shop Window, and Save/Load Manager.
 
-import { ITEM_TYPES, ITEMS } from './items.js';
+import { ITEM_TYPES, getItem } from './items.js';
 import { SaveManager } from './save.js';
 
 export class UI {
@@ -60,7 +60,8 @@ export class UI {
               <button class="tab-btn active" data-tab="weapon">⚔️ Weapon</button>
               <button class="tab-btn" data-tab="armor">🛡️ Armor</button>
               <button class="tab-btn" data-tab="consumable">🧪 Items</button>
-              <button class="tab-btn" data-tab="key">🔑 Key</button>
+              <button class="tab-btn" data-tab="misc">🔑 Other</button>
+              <button class="tab-btn" data-tab="message">✉️ Messages</button>
             </div>
             <div id="item-list" class="item-list"></div>
           </div>
@@ -76,12 +77,12 @@ export class UI {
     this.shopEl.innerHTML = `
       <div class="modal-box">
         <div class="modal-header">
-          <h2>FLAN TOWN STORE</h2>
+          <h2>STORE</h2>
           <button id="shop-close-btn" class="close-btn">&times;</button>
         </div>
         <div class="modal-body">
           <div class="shop-list-container">
-            <h3>Items for Sale</h3>
+            <p id="shop-greeting" class="shop-greeting"></p>
             <div id="shop-items-list" class="item-list"></div>
           </div>
         </div>
@@ -209,7 +210,8 @@ export class UI {
     filtered.forEach((item) => {
       const row = document.createElement('div');
       row.className = 'item-row';
-      const isEquipped = (p.weapon && p.weapon.id === item.id) || (p.armor && p.armor.id === item.id);
+      const isEquipped = (p.weapon && p.weapon.code === item.code)
+        || (p.armor && p.armor.code === item.code);
 
       row.innerHTML = `
         <div class="item-name">${item.name} ${isEquipped ? '<span class="equipped-tag">[Equipped]</span>' : ''}</div>
@@ -249,29 +251,31 @@ export class UI {
   renderShopItems() {
     const listEl = document.getElementById('shop-items-list');
     listEl.innerHTML = '';
-    const shopStock = [
-      ITEMS.bronze_sword,
-      ITEMS.silver_sword,
-      ITEMS.leather_armor,
-      ITEMS.iron_shield,
-      ITEMS.potion,
-      ITEMS.super_potion,
-      ITEMS.small_key,
-    ];
 
-    shopStock.forEach((item) => {
+    const store = this.game.currentStore;
+    if (!store) {
+      listEl.innerHTML = '<div class="empty-msg">Nothing for sale here.</div>';
+      return;
+    }
+
+    const greetingEl = document.getElementById('shop-greeting');
+    if (greetingEl) greetingEl.textContent = store.greeting;
+
+    store.stock.forEach((entry) => {
+      const item = getItem(entry.code);
+      if (!item) return;
       const row = document.createElement('div');
       row.className = 'item-row';
       row.innerHTML = `
-        <div class="item-name">${item.name} - <span class="gold-text">${item.price} Gold</span></div>
+        <div class="item-name">${item.name} - <span class="gold-text">${entry.price} Gold</span></div>
         <div class="item-desc">${item.desc}</div>
         <div class="item-actions">
           <button class="action-btn buy-btn">Buy</button>
         </div>
       `;
       row.querySelector('.buy-btn').addEventListener('click', () => {
-        if (this.game.player.gold >= item.price) {
-          this.game.player.gold -= item.price;
+        if (this.game.player.gold >= entry.price) {
+          this.game.player.gold -= entry.price;
           this.game.player.addItem(item);
           this.game.audio.play('hit');
           this.renderShopItems();
