@@ -1,0 +1,142 @@
+/* Mantra Web - Style */
+
+:root {
+  --bg-color: #0b0c10;
+  --panel-bg: #1f2833;
+  --accent-color: #66fcf1;
+  --accent-hover: #45a29e;
+  --text-color: #c5c6c7;
+  --border-color: #45a29e;
+  --hp-color: #e63946;
+  --stamina-color: #48cae4;
+  --gold-color: #ffb703;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+h1 {
+  font-size: 2.2rem;
+  color: var(--accent-color);
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(102, 252, 241, 0.4);
+}
+
+p.subtitle {
+  font-size: 0.95rem;
+  color: #8892b0;
+  margin-top: 0.25rem;
+}
+
+#game-container {
+  position: relative;
+  background-color: #000;
+  border: 4px solid var(--panel-bg);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(102, 252, 241, 0.15);
+  overflow: hidden;
+}
+
+canvas#game-canvas {
+  display: block;
+  width: 1024px;
+  height: 688px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background-color: #000;
+}
+
+#overlay-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(11, 12, 16, 0.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: opacity 0.3s ease;
+}
+
+#overlay-screen.hidden {
+  display: none;
+}
+
+#overlay-title {
+  font-size: 2.5rem;
+  color: var(--accent-color);
+  margin-bottom: 1rem;
+  text-shadow: 0 0 12px rgba(102, 252, 241, 0.6);
+}
+
+#overlay-msg {
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  max-width: 80%;
+  line-height: 1.5;
+}
+
+.btn {
+  background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
+  color: #0b0c10;
+  border: none;
+  padding: 0.75rem 2rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(102, 252, 241, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 252, 241, 0.5);
+}
+
+#controls-guide {
+  margin-top: 1.25rem;
+  background: var(--panel-bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0.85rem 1.5rem;
+  display: flex;
+  gap: 2rem;
+  font-size: 0.9rem;
+}
+
+.key-badge {
+  background: #0b0c10;
+  border: 1px solid var(--accent-hover);
+  color: var(--accent-color);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-weight: bold;
+}

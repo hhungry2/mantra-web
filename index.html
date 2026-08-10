@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mantra Web Port (Action RPG)</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <h1>MANTRA</h1>
+    <p class="subtitle">Action RPG Web Port (1995 Syzygy Cult)</p>
+  </header>
+
+  <main id="game-container">
+    <canvas id="game-canvas" width="512" height="344"></canvas>
+
+    <div id="overlay-screen">
+      <h2 id="overlay-title">MANTRA</h2>
+      <p id="overlay-msg">Click Start Game to launch Phase 1 Vertical Slice</p>
+      <button id="start-btn" class="btn">START GAME</button>
+    </div>
+  </main>
+
+  <footer id="controls-guide">
+    <div><span class="key-badge">Arrow / WASD</span> 移動</div>
+    <div><span class="key-badge">Shift</span> ダッシュ (スタミナ消費)</div>
+    <div><span class="key-badge">Space</span> 剣攻撃</div>
+    <div><span class="key-badge">M</span> サウンド切り替え</div>
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
