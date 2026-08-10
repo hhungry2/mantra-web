@@ -1,30 +1,30 @@
 // Screen data, terrain queries, and screen transitions.
 //
-// Terrain collision is per pixel: every map tile ships a mask (MapGraphics
-// 3000+, extracted to assets/tile_masks.png) marking which of its pixels block
-// movement. That is what lets the original put a walkable strip of grass under
-// the canopy of a tree tile. The tile modifier says nothing about terrain; it
-// carries the non-terrain meanings (doors, warps, shops) instead.
+// A tile's `modifiers` byte is what governs movement, exactly as it did in the
+// original: a tile blocks unless it is marked standable. Doors carry their
+// destination packed into the tile's `special` field.
 
 import { TILE, SCREEN_COLS, VIEW_W, VIEW_H, WORLD_COLS, WORLD_ROWS } from './config.js';
 
 const SAMPLE_STEP = 4;
 
-// Bridges and doorways are drawn over water or through a wall, so their art is
-// masked solid and the modifier is what makes them passable. Both halves have
-// to match: the same modifiers also sit on the blank filler tile (1059) that
-// fills the unused screens, and walking out into those is not intended.
-const WALK_OVER_MODIFIERS = new Set([260, 772, 775, 1284, 4868, 5080]);
-const WALK_OVER_TILES = new Set([1020, 1021, 1052, 1023, 1030, 1031, 1032, 1033, 1036]);
+export const MOD = {
+  STANDABLE: 1,
+  IS_DOOR: 2,
+  DOES_DAMAGE: 4,
+  LEADS_TO_CASTLE: 8,
+  LEADS_TO_UNDERWORLD: 16,
+};
+
+// The underworld is the bottom half of the 16x16 grid, eight rows down.
+const UNDERWORLD_OFFSET = 8 * WORLD_COLS;
 
 export class World {
   constructor(assets) {
     this.screens = assets.map.screens;
     // map.json stores screens positionally, so hand each one its index.
     this.screens.forEach((screen, index) => { screen.index = index; });
-    this.mask = assets.mask;
     this.tileIndex = assets.tileIndex;
-    this.maskCols = assets.gfx.tiles.cols;
   }
 
   screen(index) {
@@ -32,19 +32,22 @@ export class World {
   }
 
   tileAt(screen, tx, ty) {
-    if (!screen || !screen.tiles) return 1000;
-    const idx = ty * SCREEN_COLS + tx;
-    return screen.tiles[idx] !== undefined ? screen.tiles[idx] : 1000;
+    const tile = screen && screen.tiles ? screen.tiles[ty * SCREEN_COLS + tx] : undefined;
+    return tile === undefined ? 1000 : tile;
   }
 
   modifierAt(screen, tx, ty) {
-    if (!screen || !screen.mods) return 0;
-    const idx = ty * SCREEN_COLS + tx;
-    return screen.mods[idx] || 0;
+    const mod = screen && screen.mods ? screen.mods[ty * SCREEN_COLS + tx] : undefined;
+    return mod === undefined ? 0 : mod;
   }
 
-  // Is this exact pixel impassable? Off the screen counts as solid only at the
-  // rim of the world; everywhere else it is the hand-off to the next screen.
+  specialAt(screen, tx, ty) {
+    const special = screen && screen.special ? screen.special[ty * SCREEN_COLS + tx] : undefined;
+    return special === undefined ? 0 : special;
+  }
+
+  // Off the screen counts as solid only at the rim of the world; everywhere
+  // else it is the hand-off to the next screen.
   isSolidPixel(screen, px, py) {
     if (px < 0 || py < 0 || px >= VIEW_W || py >= VIEW_H) {
       const index = screen && screen.index !== undefined ? screen.index : 0;
@@ -56,20 +59,11 @@ export class World {
       if (py >= VIEW_H && gridY === WORLD_ROWS - 1) return true;
       return false;
     }
-
-    const tx = px >> 5;
-    const ty = py >> 5;
-    const tile = this.tileAt(screen, tx, ty);
-    if (WALK_OVER_TILES.has(tile)
-        && WALK_OVER_MODIFIERS.has(this.modifierAt(screen, tx, ty))) return false;
-
-    const atlas = this.tileIndex.get(tile);
-    if (atlas === undefined) return false;
-    const ax = (atlas % this.maskCols) * TILE + (px & 31);
-    const ay = Math.floor(atlas / this.maskCols) * TILE + (py & 31);
-    return this.mask.solid[ay * this.mask.width + ax] === 1;
+    return !(this.modifierAt(screen, px >> 5, py >> 5) & MOD.STANDABLE);
   }
 
+  // Sample a grid over the box rather than only its corners, or a thin wall
+  // would slip between the corners of a 16px-wide body.
   boxHitsWall(screen, b) {
     const right = b.x + b.w - 1;
     const bottom = b.y + b.h - 1;
@@ -85,6 +79,13 @@ export class World {
     return false;
   }
 
+  // Standing on a damage tile hurts, which is how the game fences off water.
+  damageAt(screen, px, py) {
+    if (px < 0 || py < 0 || px >= VIEW_W || py >= VIEW_H) return 0;
+    const mod = this.modifierAt(screen, px >> 5, py >> 5);
+    return (mod & MOD.DOES_DAMAGE) ? this.specialAt(screen, px >> 5, py >> 5) : 0;
+  }
+
   getNeighbor(screenIndex, dir) {
     const gridX = screenIndex % WORLD_COLS;
     const gridY = Math.floor(screenIndex / WORLD_COLS);
@@ -96,20 +97,29 @@ export class World {
     return null;
   }
 
-  checkWarp(screen, px, py) {
+  // A door either drops straight into the underworld directly below, or
+  // teleports somewhere the tile's `special` field spells out:
+  //   bits 0-3   destination tile y      bits 4-7   destination tile x
+  //   bits 8-11  destination screen row  bits 12-15 destination screen column
+  doorAt(screen, px, py) {
     if (px < 0 || py < 0 || px >= VIEW_W || py >= VIEW_H) return null;
     const tx = px >> 5;
     const ty = py >> 5;
     const mod = this.modifierAt(screen, tx, ty);
-    // Door / Portal warp modifiers (e.g. 772, 1284, 4868, 4950)
-    if ((mod & 0x100) && mod !== 260 && mod !== 264 && mod !== 342) {
-      const idx = ty * SCREEN_COLS + tx;
-      const extra = screen.extra ? screen.extra[idx] : 0;
-      if (extra && extra !== 0) {
-        let targetScreen = Math.abs(extra) % 256;
-        return { targetScreen, targetTileX: 8, targetTileY: 5 };
-      }
+    if (!(mod & MOD.IS_DOOR)) return null;
+
+    if (mod & MOD.LEADS_TO_UNDERWORLD) {
+      const target = screen.index + UNDERWORLD_OFFSET;
+      if (target >= this.screens.length) return null;
+      return { screen: target, tileX: tx, tileY: ty };
     }
-    return null;
+
+    const special = this.specialAt(screen, tx, ty) & 0xffff;
+    if (!special) return null;
+    return {
+      screen: (((special & 0x0f00) >> 8) * WORLD_COLS) + ((special & 0xf000) >> 12),
+      tileX: (special & 0x00f0) >> 4,
+      tileY: special & 0x000f,
+    };
   }
 }

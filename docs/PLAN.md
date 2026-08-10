@@ -132,6 +132,20 @@ MapArea = 256 × 2バイト = 512 バイト                  ↑ こちらも完
 - 敵1〜2種類(`randomMovement`, `homing`)+ 接触ダメージ + 剣による撃破
 - 効果音(剣・被弾・敵撃破)+ BGM
 
+### 参考: オリジナルのCソース
+
+`include/GameTypes.h` と `src/LoadData.c` に、データ形式を確定させる定義がそのまま入っている。当初は生バイトから推測していたが、以下はソースで裏付け済み:
+
+```c
+struct MapItem { char modifiers; short special; short spriteRef; short expansion; };
+enum { standable = 1, isDoor = 2, doesDamage = 4, leadsToCastle = 8, leadsToUnderWorld = 16 };
+```
+
+- `modifiers` は**1バイト**。その次のバイトは構造体が初期化しないパディングなので、int16 として読むとゴミが下位に乗る。
+- 扉の行き先は `special` にビット詰め: 先タイルx=bit4-7 / y=bit0-3 / 画面行=bit8-11 / 画面列=bit12-15。`leadsToUnderWorld` の扉は画面番号 +128(8行ぶん下)。
+- 敵は64バイトの `Enemy` 構造体。`movementType` に22種のAI(50以上がボス8種)、`messageID` に看板の文面番号、`deadItem` にドロップ品が入る。
+- アイテムは6バイトのヘッダ + 536バイトの `DataFileItem`、店は `Str255` + 商品数 + (アイテム番号, 価格)。
+
 ### フェーズ2 — ワールドを繋げる
 
 - 画面端に到達したときの画面遷移(256画面グリッドを実際に歩けるようにする)

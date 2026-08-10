@@ -1,31 +1,27 @@
-// Boot and game loop.
-//
-// Phase 4: Full Game Release & Polish
-// Integrates 64x64 Bosses & AI, Title/Story/Win/Lose screens,
-// 4-slot localStorage Save & Load, Touch virtual pad, & final polish.
+// Boot and game loop: a 25fps fixed timestep over the 256-screen world.
 
 import {
   TILE, FRAME_MS, MAX_CATCHUP_FRAMES, START_SCREEN, START_TILE, VIEW_W, VIEW_H,
 } from './config.js';
 import { loadAssets } from './assets.js';
-import { World } from './map.js';
+import { World, MOD } from './map.js';
 import { Renderer } from './renderer.js';
 import { Input } from './input.js';
 import { Saric } from './saric.js';
 import { spawnScreen, makeMover, EnemyProjectile } from './enemy.js';
-import { Boss } from './boss.js';
+import { BOSS_NAMES } from './enemy_ai.js';
 import { overlaps } from './collision.js';
 import { Audio } from './audio.js';
 import { UI } from './ui.js';
 import { initItems, getItem } from './items.js';
 import { TouchControls } from './touch.js';
 
-// Doorways that lead into a shop. 1030..1034 are the shopfront tiles.
-const SHOP_MODIFIERS = new Set([772, 775, 4868, 5080]);
+// Shopfront tiles. Which of the five shops a door leads to is not recorded,
+// so the storefront art picks one and a given door always opens the same.
 const SHOP_TILE_BASE = 1030;
 
-// screen index -> { id, tileX, tileY }. Empty until boss placement is decoded.
-const BOSS_SCREENS = new Map();
+// How close Saric has to stand to read a signpost.
+const READ_RANGE = 40;
 
 // Fire, Earth, Water, Air, Force.
 const MANTRA_CODES = [100, 101, 102, 103, 104];
@@ -34,7 +30,6 @@ class Game {
   constructor(assets, canvas) {
     this.world = new World(assets);
     this.renderer = new Renderer(canvas, assets);
-    this.templates = assets.templates;
     this.gfx = assets.gfx;
     this.textMsgs = assets.textMsgs || [];
     this.stores = assets.stores || [];
@@ -92,17 +87,9 @@ class Game {
   enter(index, spawnX = null, spawnY = null) {
     this.screenIndex = index;
     this.screen = this.world.screen(index);
-    this.enemies = spawnScreen(this.screen, this.templates, this.defeatedMasks[index]);
-
-    // No bosses yet. Where they belong is not in anything we can read: the
-    // enemy templates only reference the 32x32 sprite sheet, and the one screen
-    // with its own area id is a solid block of filler. Guessing put them on
-    // blank screens and inside walls, so they stay out until #9 finds them.
-    const boss = BOSS_SCREENS.get(index);
-    if (boss && !(this.defeatedMasks[index] & 1)) {
-      this.enemies.push(new Boss(boss.id, boss.tileX, boss.tileY));
-    }
-
+    // Bosses need no special casing: they sit in the screen's own enemy slots
+    // with a movementType of 50 or above.
+    this.enemies = spawnScreen(this.screen, this.defeatedMasks[index]);
     this.projectiles = [];
     this.move = makeMover(this.world, this.screen);
 
@@ -143,12 +130,11 @@ class Game {
     this.noteUntil = this.frame + 60;
   }
 
-  // Which of the five shops a doorway leads to is not recorded anywhere we can
-  // read yet: the tile's second field, which would hold the target, survives in
-  // the data as a truncated pointer. Until that is decoded (#11) the shopfront
-  // art picks the shop, so a given door at least always opens the same one.
+  // A door's `special` field carries a destination, not a shop number, so
+  // which of the five shops lies behind a given door is still a guess: the
+  // shopfront art picks it, and the same door always opens the same shop.
   storeAt(tile, mod) {
-    if (!SHOP_MODIFIERS.has(mod)) return null;
+    if (!(mod & MOD.IS_DOOR)) return null;
     const index = tile - SHOP_TILE_BASE;
     if (index < 0 || index >= this.stores.length) return null;
     return this.stores[index];
@@ -161,6 +147,18 @@ class Game {
     const mod = this.world.modifierAt(this.screen, tx, ty);
     const tile = this.world.tileAt(this.screen, tx, ty);
 
+    // Signposts and the people standing about are enemies that carry a message
+    // number into TextData.
+    const speaker = this.enemies.find((e) => e.message > 0
+      && Math.hypot(e.x - player.x, e.y - player.y) < READ_RANGE);
+    if (speaker) {
+      const text = this.textMsgs[speaker.message - 1];
+      if (text) {
+        this.ui.showDialog('', text);
+        return;
+      }
+    }
+
     const store = this.storeAt(tile, mod);
     if (store) {
       this.currentStore = store;
@@ -172,17 +170,38 @@ class Game {
     this.noteUntil = this.frame + 25;
   }
 
+  // A slain enemy stays slain, hands over its experience, and leaves behind
+  // whatever deadItem names.
+  defeat(enemy) {
+    this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
+    const leveledUp = this.player.addXp(enemy.xp);
+
+    const drop = getItem(enemy.drop);
+    if (drop) {
+      this.player.addItem(drop);
+      this.audio.play('item');
+      this.hudNote = `FOUND ${drop.name.toUpperCase()}`;
+      this.noteUntil = this.frame + 50;
+    }
+
+    if (enemy.boss) {
+      this.hudNote = `${(BOSS_NAMES[enemy.ai] || 'BOSS').toUpperCase()} DEFEATED`;
+      this.noteUntil = this.frame + 60;
+      this.audio.play('fanfare');
+    } else if (leveledUp) {
+      this.hudNote = 'LEVEL UP!';
+      this.noteUntil = this.frame + 60;
+    }
+  }
+
   checkScreenTransitions() {
     const player = this.player;
     const currIdx = this.screenIndex;
 
-    // Check Warp tiles
-    const warp = this.world.checkWarp(this.screen, player.x, player.y);
-    if (warp) {
-      const targetX = warp.targetTileX * TILE + TILE / 2;
-      const targetY = warp.targetTileY * TILE + TILE / 2;
+    const door = this.world.doorAt(this.screen, player.x, player.y);
+    if (door && door.screen !== this.screenIndex) {
       this.audio.play('door');
-      this.enter(warp.targetScreen, targetX, targetY);
+      this.enter(door.screen, door.tileX * TILE + TILE / 2, door.tileY * TILE + TILE / 2);
       return;
     }
 
@@ -217,8 +236,17 @@ class Game {
 
     this.checkScreenTransitions();
 
-    const spawnProj = (x, y, vx, vy, damage) => {
-      this.projectiles.push(new EnemyProjectile(x, y, vx, vy, damage));
+    // Standing in the water or the fire hurts; the tile's special field says
+    // how much.
+    const harm = this.world.damageAt(this.screen, player.x, player.y);
+    if (harm > 0 && this.frame % 12 === 0) {
+      if (player.hurt(harm, player.x, player.y + 8)) {
+        this.audio.play(player.dead ? 'die' : 'hurt');
+      }
+    }
+
+    const spawnProj = (x, y, vx, vy, damage, sprite) => {
+      this.projectiles.push(new EnemyProjectile(x, y, vx, vy, damage, sprite));
     };
 
     const ctx = {
@@ -238,24 +266,10 @@ class Game {
       if (sword && enemy.flash === 0 && overlaps(sword, enemy.body)) {
         const killed = enemy.hurt(player.attack, player.x, player.y);
         this.audio.play(killed ? 'kill' : 'hit');
-        if (killed) {
-          if (enemy.slotIndex !== undefined) {
-            this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
-          } else if (enemy.isBoss) {
-            this.defeatedMasks[this.screenIndex] |= 1;
-          }
-          player.gold += enemy.isBoss ? 200 : 5;
-          const xpReward = enemy.isBoss ? 150 : Math.max(5, enemy.hp * 2);
-          const leveledUp = player.addXp(xpReward);
-          if (leveledUp) {
-            this.audio.play('kill');
-            this.hudNote = 'LEVEL UP!';
-            this.noteUntil = this.frame + 60;
-          }
-        }
+        if (killed) this.defeat(enemy);
       }
 
-      if (!enemy.dead && overlaps(player.body, enemy.body)) {
+      if (!enemy.dead && enemy.damage > 0 && overlaps(player.body, enemy.body)) {
         if (player.hurt(enemy.damage, enemy.x, enemy.y)) {
           this.audio.play(player.dead ? 'die' : 'hurt');
         }
@@ -327,7 +341,7 @@ async function boot() {
   const game = new Game(assets, canvas);
   window.mantra = game; // debug handle
   game.draw();
-  message.textContent = 'Mantra Web Port (Full Release: 256 Screens, RPG Systems, Bosses, Saves, & Touch Controls)';
+  message.textContent = 'Mantra: 256 screens, 586 creatures, and the five Mantras to find.';
   button.disabled = false;
 
   const story = document.getElementById('story-screen');

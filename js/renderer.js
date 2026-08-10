@@ -92,19 +92,14 @@ export class Renderer {
   }
 
   drawProjectiles(projectiles) {
-    if (!projectiles) return;
-    const ctx = this.ctx;
-    ctx.fillStyle = '#ff4d4d';
     for (const p of projectiles) {
       if (p.dead) continue;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffff66';
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ff4d4d';
+      if (p.sprite) {
+        this.drawSprite(p.sprite, p.x - SPRITE / 2, p.y - SPRITE / 2);
+      } else {
+        this.ctx.fillStyle = '#ffb703';
+        this.ctx.fillRect(Math.round(p.x) - 3, Math.round(p.y) - 3, 6, 6);
+      }
     }
   }
 

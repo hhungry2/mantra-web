@@ -10,14 +10,17 @@ Formats worked out from the raw bytes (see docs/PLAN.md for the sizing proof):
                 left/right/down/up), 1500..1503 his sword, 2000+ the enemies.
   IconData      chunks of raw 8bpp pixels, 256 bytes (16x16) or 1024 (32x32).
   BossData      51 raw 64x64 frames back to back.
-  MapData       256 screens x (160 tiles x 8 bytes + 16 enemies x 64 bytes).
-                A tile is four big-endian int16: modifier, extra, tileId, 0,
-                and the 160 tiles are stored column-major (index = x * 10 + y).
-                An enemy slot is a dumped runtime struct; the fields that
-                survive as data are template index (u16 @0), row (u16 @44)
-                and column (u16 @46). A slot is empty when the index is 0.
-  TmplData      65 enemy templates of 70 bytes; sprite id at @0, hit points
-                at @24, sprite id repeated at @44.
+  MapData       256 screens x (160 tiles x 8 bytes + 16 enemies x 64 bytes),
+                the tiles stored column-major (index = x * 10 + y).
+                A tile is MapItem: char modifiers, a padding byte the struct
+                never initialised, then int16 special, spriteRef, expansion.
+                modifiers is a bit set - 1 standable, 2 isDoor, 4 doesDamage,
+                8 leadsToCastle, 16 leadsToUnderWorld - and for a door,
+                special packs the destination: tile x in bits 4-7, tile y in
+                bits 0-3, screen row in bits 8-11 and column in bits 12-15.
+                An enemy slot is the 64 byte Enemy struct; see read_enemy().
+  TmplData      65 enemy templates: the same 6 byte header as the icons,
+                then an Enemy.
   ItemData      39 items of 542 bytes: icon id, a length-prefixed name and
                 description in 256 byte fields, then a stat block. See
                 extract_items().
@@ -142,6 +145,32 @@ def extract_icons(gamedata, palette, gfx):
         print(f'{name}: {len(ids)} icons')
 
 
+def read_enemy(rec):
+    """
+    The 64 byte Enemy struct, in the order LoadData.c's readEnemy() writes it.
+    The first eight bytes are two Macintosh handles that meant something only
+    while the game was running; everything from there is real.
+    """
+    return {
+        'hp': struct.unpack('>h', rec[18:20])[0],
+        'armor': struct.unpack('>b', rec[20:21])[0],
+        'damage': struct.unpack('>b', rec[21:22])[0],
+        'xp': struct.unpack('>H', rec[22:24])[0],
+        'attributes': struct.unpack('>i', rec[24:28])[0],
+        'speed': struct.unpack('>b', rec[32:33])[0],
+        'range': rec[34],                                    # gaurdianRange
+        'facing': struct.unpack('>b', rec[35:36])[0],
+        'rate': rec[36],                                     # rateOfFire
+        'sprite': struct.unpack('>h', rec[38:40])[0],
+        'ai': struct.unpack('>h', rec[40:42])[0],            # movementType
+        'drop': rec[42],                                     # deadItem
+        'r': struct.unpack('>h', rec[44:46])[0],             # originalPosition.v
+        'c': struct.unpack('>h', rec[46:48])[0],             # originalPosition.h
+        'fires': struct.unpack('>h', rec[48:50])[0],         # firedEnemy
+        'message': struct.unpack('>h', rec[58:60])[0],
+    }
+
+
 def extract_map(gamedata):
     map_bytes = blob(gamedata, 'MapData')
     area_bytes = blob(gamedata, 'MapArea')
@@ -150,49 +179,50 @@ def extract_map(gamedata):
     screens = []
     for s in range(SCREENS):
         sb = map_bytes[s * SCREEN_BYTES:(s + 1) * SCREEN_BYTES]
-        fields = struct.unpack('>%dh' % (TILES_PER_SCREEN * 4), sb[:TILES_PER_SCREEN * 8])
         # Tiles are stored column-major (index = x * 10 + y); re-order to the
         # row-major layout the renderer walks.
         order = [x * 10 + y for y in range(10) for x in range(16)]
-        mods = [fields[i * 4 + 0] for i in order]
-        extra = [fields[i * 4 + 1] for i in order]
-        tiles = [fields[i * 4 + 2] for i in order]
+        mods, special, tiles = [], [], []
+        for i in order:
+            rec = sb[i * 8:(i + 1) * 8]
+            # modifiers is a single char; the byte after it is padding the
+            # struct never initialised, so only the first byte is meaningful.
+            mods.append(rec[0])
+            special.append(struct.unpack('>h', rec[2:4])[0])
+            tiles.append(struct.unpack('>h', rec[4:6])[0])
 
         enemies = []
         for e in range(ENEMY_SLOTS):
             rec = sb[TILES_PER_SCREEN * 8 + e * 64:TILES_PER_SCREEN * 8 + (e + 1) * 64]
-            template, row, col = struct.unpack('>H', rec[0:2])[0], rec[45], rec[47]
-            if template == 0 or template >= 65:
+            enemy = read_enemy(rec)
+            if enemy['sprite'] < 2000 or enemy['sprite'] > 2999:
                 continue
-            enemies.append({'t': template, 'c': col, 'r': row})
+            enemies.append(enemy)
 
         screens.append({
             'area': areas[s],
             'tiles': tiles,
             'mods': mods,
-            'extra': extra,
+            'special': special,
             'enemies': enemies,
         })
 
     write_json(os.path.join(DATA_DIR, 'map.json'), {
         'width': 16, 'height': 16, 'tilesX': 16, 'tilesY': 10, 'screens': screens})
     print(f'map.json: {SCREENS} screens, '
-          f'{sum(len(s["enemies"]) for s in screens)} enemy placements')
+          f'{sum(len(s["enemies"]) for s in screens)} enemies, '
+          f'{sum(1 for s in screens for e in s["enemies"] if e["ai"] >= 50)} of them bosses')
 
 
 def extract_templates(gamedata):
+    """TmplData is the same id + length header as the icons, then an Enemy."""
     data = blob(gamedata, 'TmplData')
     templates = []
     for i in range(len(data) // TEMPLATE_BYTES):
         rec = data[i * TEMPLATE_BYTES:(i + 1) * TEMPLATE_BYTES]
-        sprite, hp = struct.unpack('>H', rec[0:2])[0], struct.unpack('>H', rec[24:26])[0]
-        templates.append({
-            'id': i,
-            'sprite': sprite,
-            'hp': hp,
-            # Not yet decoded; kept verbatim so phase 2 can work out the AI ids.
-            'raw': rec.hex(),
-        })
+        template = read_enemy(rec[6:])
+        template['id'] = struct.unpack('>H', rec[0:2])[0]
+        templates.append(template)
     write_json(os.path.join(DATA_DIR, 'enemies.json'), {'templates': templates})
     print(f'enemies.json: {len(templates)} templates')
 
@@ -213,22 +243,26 @@ def extract_items(gamedata):
     """
     ItemData: 39 records of 542 bytes.
 
-      @0   u16  icon id (16001+ in IconData; the 15xxx twin is the 16x16 art)
-      @6   pstr name, in a 256 byte field
-      @262 pstr description, in a 256 byte field
-      @518 the stat block:
-           @521 u8 attribute flags  1 weapon, 2 armor, 4 money, 8 message,
-                                    32 ring, 64 carryable, 128 magic
-           @522 u8 defence          @523 u8 attack
-           @530 i8 stamina          @531 u8 heal
-                                    (positive costs stamina to use, negative
-                                     restores it: the fatigue potions are
-                                     -5/-10/-15, the mantras cost 5..50)
-           @533 u8 value            (coins: 1/5/10/50/100, potions: price)
-           @534 u16 icon id again   @536 u16 projectile sprite (2000+)
+    Each record is the 6 byte id/length header the icons use, then the 536
+    byte DataFileItem that LoadData.c reads:
 
-    Items are keyed by icon id minus 16000, which is how StoreData refers to
-    them.
+      @0   u16 id (16001+), u32 length      the header
+      @6   Str255 name                      256 bytes
+      @262 Str255 description               256 bytes
+      @518 i32 attributes    1 isSword, 2 isArmor, 4 isMoney, 8 isMessage,
+                             16 isNotSelectable, 32 isSelectable,
+                             64 isSpecialItem, 128 isMissle, 256 hasCharges,
+                             512 hasSpecialRoutine
+      @522 u8 armor          @523 u8 damage
+      @524 i8 speed          @525 u8 rateOfFire
+      @528 i16 charges       @530 i8 stamina    (a cost when positive, a
+                                                 restore when negative: the
+                                                 fatigue potions are -5/-10/-15
+                                                 and the mantras cost 5..50)
+      @531 i8 damageHealed   @532 i16 quantity  (a coin's face value)
+      @534 u16 spriteRef     @536 u16 firedMonsterID
+
+    Items are keyed by id minus 16000, which is how StoreData names its stock.
     """
     data = blob(gamedata, 'ItemData')
     items = []
@@ -240,13 +274,16 @@ def extract_items(gamedata):
             'icon': icon,
             'name': pascal(rec, ITEM_NAME_AT),
             'desc': pascal(rec, ITEM_DESC_AT),
-            'flags': rec[521],
-            'defense': rec[522],
-            'attack': rec[523],
+            'attributes': struct.unpack('>i', rec[518:522])[0],
+            'armor': rec[522],
+            'damage': rec[523],
+            'speed': struct.unpack('>b', rec[524:525])[0],
+            'rate': rec[525],
+            'charges': struct.unpack('>h', rec[528:530])[0],
             'stamina': struct.unpack('>b', rec[530:531])[0],
-            'heal': rec[531],
-            'value': rec[533],
-            'projectile': struct.unpack('>H', rec[536:538])[0],
+            'heal': struct.unpack('>b', rec[531:532])[0],
+            'quantity': struct.unpack('>h', rec[532:534])[0],
+            'fires': struct.unpack('>H', rec[536:538])[0],
         })
     write_json(os.path.join(DATA_DIR, 'items.json'), {'items': items})
     print(f'items.json: {len(items)} items')
