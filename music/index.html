@@ -470,7 +470,9 @@
 
     freqOf(period){ return periodToFreq(Math.max(period, 40)); }
 
-    // Per-channel output level, 0..1, on a dB scale so quiet detail stays visible.
+    // Per-channel output level, 0..1. These samples run hot - measured RMS
+    // sits around 0.3 and tops out near 0.6 - so normalise against that range
+    // rather than full scale, or every bar reads as full the whole time.
     levels(){
       return this.chan.map(c => {
         if(!c.meter) return 0;
@@ -478,9 +480,9 @@
         let sum = 0;
         for(let i=0;i<c.meterBuf.length;i++) sum += c.meterBuf[i]*c.meterBuf[i];
         const rms = Math.sqrt(sum/c.meterBuf.length);
-        if(rms <= 0.0001) return 0;
-        const db = 20*Math.log10(rms);
-        return Math.max(0, Math.min(1, (db + 48)/48));
+        if(rms <= 0.0005) return 0;
+        // Gamma lifts the quiet end so soft channels stay readable.
+        return Math.pow(Math.min(1, rms/0.75), 0.7);
       });
     }
 
