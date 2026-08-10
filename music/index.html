@@ -395,6 +395,8 @@
     constructor(){
       this.ctx = null;
       this.master = null;
+      this.mixBus = null;
+      this.limiter = null;
       this.playing = false;
       this.mod = null;
       this.buffers = [];
@@ -408,7 +410,16 @@
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         this.master = this.ctx.createGain();
         this.master.gain.value = 0.7;
-        this.master.connect(this.ctx.destination);
+        // Channels sum to well over full scale on their own, so a limiter
+        // guards the output against the peaks the mix bus doesn't catch.
+        this.limiter = this.ctx.createDynamicsCompressor();
+        this.limiter.threshold.value = -1.5;
+        this.limiter.knee.value = 0;
+        this.limiter.ratio.value = 20;
+        this.limiter.attack.value = 0.002;
+        this.limiter.release.value = 0.12;
+        this.master.connect(this.limiter);
+        this.limiter.connect(this.ctx.destination);
       }
     }
 
@@ -425,15 +436,21 @@
         return buf;
       });
       this.chan = [];
+      // Each channel runs at up to full scale, so summing them raw clips hard.
+      // Scale the bus by the channel count to leave the mix headroom.
+      if(this.mixBus) this.mixBus.disconnect();
+      this.mixBus = this.ctx.createGain();
+      this.mixBus.gain.value = 1 / Math.sqrt(mod.channels);
+      this.mixBus.connect(this.master);
       for(let c=0;c<mod.channels;c++){
         const gain = this.ctx.createGain();
         gain.gain.value = 0;
         const pan = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
         if(pan){
           pan.pan.value = (c % 4 === 0 || c % 4 === 3) ? -0.6 : 0.6;
-          gain.connect(pan); pan.connect(this.master);
+          gain.connect(pan); pan.connect(this.mixBus);
         } else {
-          gain.connect(this.master);
+          gain.connect(this.mixBus);
         }
         this.chan.push({
           gain, pan, source: null, sampleIdx: -1,
