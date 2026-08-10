@@ -76,6 +76,23 @@ export class Renderer {
     for (const d of drawables) d.draw();
   }
 
+  drawProjectiles(projectiles) {
+    if (!projectiles) return;
+    const ctx = this.ctx;
+    ctx.fillStyle = '#ff4d4d';
+    for (const p of projectiles) {
+      if (p.dead) continue;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffff66';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ff4d4d';
+    }
+  }
+
   drawHud(player, info) {
     const ctx = this.ctx;
     const top = VIEW_H;

@@ -1,13 +1,8 @@
-// Spawning and updating the enemies a screen carries.
-//
-// A screen's 16 enemy slots give a template index and a tile position. The
-// template (TmplData) supplies the sprite and hit points. Speed, contact damage
-// and which of the 22 movement routines to run are still undecoded, so phase 1
-// derives them from the template index; phase 2 replaces that with real data.
+// Spawning and updating enemies and enemy projectiles on a screen.
 
 import { TILE } from './config.js';
 import { box } from './collision.js';
-import { BEHAVIOURS } from './enemy_ai.js';
+import { BEHAVIOURS, AI_NAMES } from './enemy_ai.js';
 
 const BODY_W = 20;
 const BODY_H = 16;
@@ -15,15 +10,20 @@ const HIT_FLASH = 6;
 const KNOCK_FRAMES = 5;
 
 export class Enemy {
-  constructor(template, tileX, tileY) {
+  constructor(template, slotIndex, tileX, tileY) {
+    this.slotIndex = slotIndex;
     this.x = tileX * TILE + TILE / 2;
     this.y = tileY * TILE + TILE / 2;
     this.sprite = template.sprite;
     this.hp = Math.max(1, template.hp);
     this.speed = template.hp >= 20 ? 0.9 : 1.4;
     this.damage = template.hp >= 20 ? 3 : 2;
-    // Provisional: alternating so both phase 1 behaviours are on screen.
-    this.behaviour = template.id % 2 === 0 ? 'randomMovement' : 'homing';
+
+    // Pick AI behavior based on template ID
+    const aiIndex = Math.abs(template.id) % AI_NAMES.length;
+    this.behaviourName = AI_NAMES[aiIndex];
+    this.behaviour = BEHAVIOURS[this.behaviourName] || BEHAVIOURS.randomMovement;
+
     this.vx = 0;
     this.vy = 0;
     this.retarget = 0;
@@ -53,25 +53,53 @@ export class Enemy {
       ctx.move(this, this.knock.x, this.knock.y);
       this.knock.frames--;
       if (this.knock.frames <= 0) this.knock = null;
-      return;   // staggered enemies do not also walk
+      return;
     }
-    BEHAVIOURS[this.behaviour](this, ctx);
+    this.behaviour(this, ctx);
   }
 }
 
-export function spawnScreen(screen, templates) {
+export class EnemyProjectile {
+  constructor(x, y, vx, vy, damage = 2) {
+    this.x = x;
+    this.y = y;
+    this.vx = vx;
+    this.vy = vy;
+    this.damage = damage;
+    this.lifetime = 120;
+    this.dead = false;
+  }
+
+  get body() {
+    return box(this.x, this.y, 8, 8);
+  }
+
+  update(world, screen) {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.lifetime--;
+    if (this.lifetime <= 0 || world.isSolidPixel(screen, Math.round(this.x), Math.round(this.y))) {
+      this.dead = true;
+    }
+  }
+}
+
+export function spawnScreen(screen, templates, defeatedMask = 0) {
   const byId = new Map(templates.map((t) => [t.id, t]));
   const enemies = [];
-  for (const slot of screen.enemies) {
+  if (!screen || !screen.enemies) return enemies;
+
+  for (let idx = 0; idx < screen.enemies.length; idx++) {
+    const slot = screen.enemies[idx];
+    if (defeatedMask & (1 << idx)) continue; // Enemy was defeated, do not spawn
+
     const template = byId.get(slot.t);
     if (!template) continue;
-    enemies.push(new Enemy(template, slot.c, slot.r));
+    enemies.push(new Enemy(template, idx, slot.c, slot.r));
   }
   return enemies;
 }
 
-// Shared movement helper: axis-separated, so an enemy pinned on one axis can
-// still slide along the other.
 export function makeMover(world, screen) {
   return (entity, dx, dy) => {
     let moved = false;

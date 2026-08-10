@@ -14,6 +14,10 @@ export const CANVAS_H = VIEW_H + HUD_H;
 export const FRAME_MS = 40;                 // 25 fps fixed timestep
 export const MAX_CATCHUP_FRAMES = 5;
 
+export const WORLD_COLS = 16;
+export const WORLD_ROWS = 16;
+export const TOTAL_SCREENS = WORLD_COLS * WORLD_ROWS; // 256
+
 // Phase 1 is a single-screen slice. Screen 17 is the river-and-bridge screen
 // at world grid (1,1): plenty of open ground, a lake to bump into, 3 enemies.
 export const START_SCREEN = 17;
@@ -30,3 +34,4 @@ export const DIR_LEFT = 0;
 export const DIR_RIGHT = 1;
 export const DIR_DOWN = 2;
 export const DIR_UP = 3;
+
