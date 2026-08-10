@@ -1,17 +1,27 @@
 // Screen data, terrain queries, and screen transitions.
 //
-// Terrain collision is driven by map tile modifiers:
-// Modifiers 4 (wall/water/tree), 3, 7, 8, 96, 129 are solid impassable terrain.
-// Modifiers 260 (Bridge!), 342 (Grass), 86 (Path), 264 (Door), 0 (Ground) are walkable.
+// Terrain collision is per pixel: every map tile ships a mask (MapGraphics
+// 3000+, extracted to assets/tile_masks.png) marking which of its pixels block
+// movement. That is what lets the original put a walkable strip of grass under
+// the canopy of a tree tile. The tile modifier says nothing about terrain; it
+// carries the non-terrain meanings (doors, warps, shops) instead.
 
 import { TILE, SCREEN_COLS, VIEW_W, VIEW_H, WORLD_COLS, WORLD_ROWS } from './config.js';
 
 const SAMPLE_STEP = 4;
-const SOLID_MODIFIERS = new Set([4, 3, 7, 8, 96, 129]);
+
+// Bridges and doorways are drawn over water or through a wall, so their art is
+// masked solid and the modifier is what makes them passable. Both halves have
+// to match: the same modifiers also sit on the blank filler tile (1059) that
+// fills the unused screens, and walking out into those is not intended.
+const WALK_OVER_MODIFIERS = new Set([260, 772, 775, 1284, 4868, 5080]);
+const WALK_OVER_TILES = new Set([1020, 1021, 1052, 1023, 1030, 1031, 1032, 1033, 1036]);
 
 export class World {
   constructor(assets) {
     this.screens = assets.map.screens;
+    // map.json stores screens positionally, so hand each one its index.
+    this.screens.forEach((screen, index) => { screen.index = index; });
     this.mask = assets.mask;
     this.tileIndex = assets.tileIndex;
     this.maskCols = assets.gfx.tiles.cols;
@@ -33,27 +43,31 @@ export class World {
     return screen.mods[idx] || 0;
   }
 
-  // Check if pixel is solid. World outer boundaries are solid.
+  // Is this exact pixel impassable? Off the screen counts as solid only at the
+  // rim of the world; everywhere else it is the hand-off to the next screen.
   isSolidPixel(screen, px, py) {
-    const screenIdx = screen ? screen.screenId : 0;
-    const gridX = screenIdx % WORLD_COLS;
-    const gridY = Math.floor(screenIdx / WORLD_COLS);
-
-    // World outer edges are solid
-    if (px < 0 && gridX === 0) return true;
-    if (px >= VIEW_W && gridX === WORLD_COLS - 1) return true;
-    if (py < 0 && gridY === 0) return true;
-    if (py >= VIEW_H && gridY === WORLD_ROWS - 1) return true;
-
-    // Interior screen boundaries allow passage for screen transition
-    if (px < 0 || py < 0 || px >= VIEW_W || py >= VIEW_H) return false;
+    if (px < 0 || py < 0 || px >= VIEW_W || py >= VIEW_H) {
+      const index = screen && screen.index !== undefined ? screen.index : 0;
+      const gridX = index % WORLD_COLS;
+      const gridY = Math.floor(index / WORLD_COLS);
+      if (px < 0 && gridX === 0) return true;
+      if (px >= VIEW_W && gridX === WORLD_COLS - 1) return true;
+      if (py < 0 && gridY === 0) return true;
+      if (py >= VIEW_H && gridY === WORLD_ROWS - 1) return true;
+      return false;
+    }
 
     const tx = px >> 5;
     const ty = py >> 5;
-    const mod = this.modifierAt(screen, tx, ty);
+    const tile = this.tileAt(screen, tx, ty);
+    if (WALK_OVER_TILES.has(tile)
+        && WALK_OVER_MODIFIERS.has(this.modifierAt(screen, tx, ty))) return false;
 
-    // Solid terrain check based on tile modifiers
-    return SOLID_MODIFIERS.has(mod);
+    const atlas = this.tileIndex.get(tile);
+    if (atlas === undefined) return false;
+    const ax = (atlas % this.maskCols) * TILE + (px & 31);
+    const ay = Math.floor(atlas / this.maskCols) * TILE + (py & 31);
+    return this.mask.solid[ay * this.mask.width + ax] === 1;
   }
 
   boxHitsWall(screen, b) {

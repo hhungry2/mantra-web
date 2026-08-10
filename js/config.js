@@ -18,10 +18,12 @@ export const WORLD_COLS = 16;
 export const WORLD_ROWS = 16;
 export const TOTAL_SCREENS = WORLD_COLS * WORLD_ROWS; // 256
 
-// Phase 1 is a single-screen slice. Screen 17 is the river-and-bridge screen
-// at world grid (1,1): plenty of open ground, a lake to bump into, 3 enemies.
-export const START_SCREEN = 17;
-export const START_TILE = { x: 7, y: 5 };
+// Screen 61 (world grid 13,3) sits in the largest region you can cross on foot:
+// 47 built screens across the north-east overworld. Screen 17, the phase 1
+// slice, turned out to be a walled compound of four screens whose only ways out
+// are cave mouths, and those need the warp targets decoded first.
+export const START_SCREEN = 61;
+export const START_TILE = { x: 13, y: 5 };
 
 // Sprite ids inside sprites.png. Saric is four poses x [left, right, down, up].
 export const SARIC_WALK_A = 1000;

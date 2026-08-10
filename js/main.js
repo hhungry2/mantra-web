@@ -57,12 +57,18 @@ class Game {
     this.input.on('Tab', () => this.ui.toggleInventory());
     this.input.on('KeyV', () => this.ui.toggleSave());
 
+    // Space is the sword. It only doubles as "dismiss" while a panel is up,
+    // and then the press is swallowed so closing a box does not also swing.
     this.input.on('Space', () => {
       if (this.ui.dialogActive) {
         this.ui.hideDialog();
-      } else {
-        this.checkInteract();
+        this.input.consumeAttack();
       }
+    });
+
+    this.input.on('KeyE', () => {
+      if (this.ui.dialogActive) this.ui.hideDialog();
+      else this.checkInteract();
     });
 
     this.input.on('Enter', () => {
