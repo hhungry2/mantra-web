@@ -182,7 +182,6 @@
     position:absolute; left:0; right:0; bottom:0;
     height:0%;
     background: linear-gradient(to top, var(--good), var(--accent) 85%);
-    transition: height 60ms linear;
   }
 
   /* track list */
@@ -246,9 +245,7 @@
   }
   footer.note a{ color: var(--ink-dim); }
 
-  @media (prefers-reduced-motion: reduce){
-    .meter i{ transition: none; }
-  }
+  /* Meter movement is driven in script; see the reduced-motion throttle there. */
 </style>
 
 <div class="unit">
@@ -452,8 +449,15 @@
         } else {
           gain.connect(this.mixBus);
         }
+        // Tap the channel so the meters can show real output, not just the
+        // commanded volume (which many modules never vary).
+        const meter = this.ctx.createAnalyser();
+        meter.fftSize = 256;
+        meter.smoothingTimeConstant = 0;
+        gain.connect(meter);
         this.chan.push({
-          gain, pan, source: null, sampleIdx: -1,
+          gain, pan, meter, meterBuf: new Float32Array(meter.fftSize),
+          source: null, sampleIdx: -1,
           period: 428, targetPeriod: 428, volume: 0,
           portaSpeed: 0, volSlide: 0, vibPos: 0, vibSpeed: 0, vibDepth: 0,
           fineOnce: 0
@@ -465,6 +469,20 @@
     }
 
     freqOf(period){ return periodToFreq(Math.max(period, 40)); }
+
+    // Per-channel output level, 0..1, on a dB scale so quiet detail stays visible.
+    levels(){
+      return this.chan.map(c => {
+        if(!c.meter) return 0;
+        c.meter.getFloatTimeDomainData(c.meterBuf);
+        let sum = 0;
+        for(let i=0;i<c.meterBuf.length;i++) sum += c.meterBuf[i]*c.meterBuf[i];
+        const rms = Math.sqrt(sum/c.meterBuf.length);
+        if(rms <= 0.0001) return 0;
+        const db = 20*Math.log10(rms);
+        return Math.max(0, Math.min(1, (db + 48)/48));
+      });
+    }
 
     triggerNote(ci, sampleNum, period, param, effect){
       const mod = this.mod, chObj = this.chan[ci];
@@ -678,7 +696,31 @@
     rows.push(btn);
   });
 
+  // Meters run on their own frame loop: they follow the audio output level,
+  // which changes far more often than the pattern rows do.
+  let meterLevels = [];
+  const calmMeters = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let lastMeterPaint = 0;
+  function meterLoop(now){
+    const bars = metersEl.children;
+    // Reduced motion still gets the levels, just refreshed far less often.
+    const minInterval = calmMeters.matches ? 250 : 0;
+    if(bars.length && (now - lastMeterPaint) >= minInterval){
+      lastMeterPaint = now;
+      const lv = player.playing ? player.levels() : [];
+      for(let i=0;i<bars.length;i++){
+        const target = lv[i] || 0;
+        // Fast attack, slow release, like a real VU meter.
+        meterLevels[i] = Math.max(target, (meterLevels[i] || 0) * 0.82);
+        bars[i].firstElementChild.style.height = (meterLevels[i]*100).toFixed(1) + '%';
+      }
+    }
+    requestAnimationFrame(meterLoop);
+  }
+  requestAnimationFrame(meterLoop);
+
   function buildMeters(n){
+    meterLevels = [];
     metersEl.innerHTML = '';
     for(let i=0;i<n;i++){
       const m = document.createElement('div');
@@ -700,10 +742,6 @@
       npRow.textContent = String(info.row).padStart(2,'0');
       npSpeed.textContent = info.speed;
       npBpm.textContent = info.bpm;
-      const bars = metersEl.children;
-      info.channels.forEach((v, idx) => {
-        if(bars[idx]) bars[idx].firstElementChild.style.height = Math.min(100, v*140) + '%';
-      });
     };
     player.play(mod);
     playIcon.style.display = 'none';
