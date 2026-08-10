@@ -74,7 +74,7 @@ def main():
             if idx is None:
                 continue
             mask = masks.crop(atlas_box(idx, tile_cols, TILE))
-            tint = Image.new('RGBA', (TILE, TILE), (255, 0, 0, 90))
+            tint = Image.new('RGBA', (TILE, TILE), (255, 0, 0, 60))
             sheet.paste(tint, (at[0] + (i % SCREEN_W) * TILE,
                                at[1] + (i // SCREEN_W) * TILE), mask)
         for e in screen['enemies']:
