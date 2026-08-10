@@ -75,11 +75,11 @@ class Game {
     this.screen = this.world.screen(index);
     this.enemies = spawnScreen(this.screen, this.templates, this.defeatedMasks[index]);
 
-    // Spawn Boss on specific boss screens (e.g. Screen 255, 100, 200)
+    // Spawn Boss on specific boss screens
     if (index === 255 && !(this.defeatedMasks[index] & 1)) {
       this.enemies.push(new Boss(7, 8, 4)); // Final Boss Zarin
     } else if (index % 32 === 0 && index !== 0 && !(this.defeatedMasks[index] & 1)) {
-      const bossType = (index / 32) % 8;
+      const bossType = Math.floor(index / 32) % 8;
       this.enemies.push(new Boss(bossType, 8, 4));
     }
 
@@ -91,6 +91,12 @@ class Game {
   }
 
   loadGameData(d) {
+    this.victory = false;
+    this.player.dead = false;
+    this.player.invuln = 0;
+    this.player.swing = 0;
+    this.player.cooldown = 0;
+
     this.player.level = d.level;
     this.player.hp = d.hp;
     this.player.hpMax = d.hpMax;
@@ -100,7 +106,6 @@ class Game {
     this.player.gold = d.gold;
     this.player.baseAttack = d.baseAttack;
     this.player.baseDefense = d.baseDefense;
-    this.player.dead = false;
 
     if (d.weaponId && ITEMS[d.weaponId]) this.player.weapon = ITEMS[d.weaponId];
     if (d.armorId && ITEMS[d.armorId]) this.player.armor = ITEMS[d.armorId];
@@ -120,8 +125,8 @@ class Game {
 
   checkInteract() {
     const player = this.player;
-    const tx = Math.floor(player.x / TILE);
-    const ty = Math.floor(player.y / TILE);
+    const tx = Math.max(0, Math.min(15, Math.floor(player.x / TILE)));
+    const ty = Math.max(0, Math.min(9, Math.floor(player.y / TILE)));
     const mod = this.world.modifierAt(this.screen, tx, ty);
 
     // Store / Shop modifier
@@ -158,15 +163,19 @@ class Game {
     if (player.x < 0) {
       const nextIdx = this.world.getNeighbor(currIdx, 'left');
       if (nextIdx !== null) this.enter(nextIdx, VIEW_W - 12, player.y);
+      else player.x = 8;
     } else if (player.x >= VIEW_W) {
       const nextIdx = this.world.getNeighbor(currIdx, 'right');
       if (nextIdx !== null) this.enter(nextIdx, 12, player.y);
+      else player.x = VIEW_W - 8;
     } else if (player.y < 0) {
       const nextIdx = this.world.getNeighbor(currIdx, 'up');
       if (nextIdx !== null) this.enter(nextIdx, player.x, VIEW_H - 12);
+      else player.y = 8;
     } else if (player.y >= VIEW_H) {
       const nextIdx = this.world.getNeighbor(currIdx, 'down');
       if (nextIdx !== null) this.enter(nextIdx, player.x, 12);
+      else player.y = VIEW_H - 8;
     }
   }
 
@@ -207,7 +216,10 @@ class Game {
             this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
           } else if (enemy.isBoss) {
             this.defeatedMasks[this.screenIndex] |= 1;
-            if (enemy.bossId === 7) this.victory = true;
+            if (enemy.bossId === 7) {
+              this.victory = true;
+              this.audio.play('fanfare');
+            }
           }
           player.gold += enemy.isBoss ? 200 : 5;
           const xpReward = enemy.isBoss ? 150 : Math.max(5, enemy.hp * 2);

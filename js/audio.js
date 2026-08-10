@@ -1,9 +1,4 @@
 // Sound effects and background music.
-//
-// The eight effects keep their original ids (128..138 with gaps). Which id is
-// which sound is not recorded anywhere in the data files, so the names below
-// are read off their lengths and will be corrected once they can be heard in
-// context.
 
 import { parseMod, ModPlayer } from './mod.js';
 
@@ -11,8 +6,12 @@ const SFX_FILES = {
   sword: 'assets/sfx/sfx_128.wav',
   hit: 'assets/sfx/sfx_129.wav',
   kill: 'assets/sfx/sfx_130.wav',
+  item: 'assets/sfx/sfx_131.wav',
+  door: 'assets/sfx/sfx_133.wav',
   hurt: 'assets/sfx/sfx_133.wav',
   die: 'assets/sfx/sfx_134.wav',
+  magic: 'assets/sfx/sfx_137.wav',
+  fanfare: 'assets/sfx/sfx_138.wav',
 };
 
 const MUSIC_FILES = [
@@ -32,7 +31,6 @@ export class Audio {
     this.currentTrack = -1;
   }
 
-  // Must be called from a user gesture, or the context stays suspended.
   start() {
     if (this.ctx) return this.ctx.resume();
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
