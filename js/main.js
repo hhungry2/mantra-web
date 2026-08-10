@@ -170,6 +170,19 @@ class Game {
     this.noteUntil = this.frame + 25;
   }
 
+  // Chests and the things lying about are enemies flagged canBeHeld: walking
+  // into one hands over whatever deadItem names.
+  collect(enemy) {
+    enemy.dead = true;
+    this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
+    const item = getItem(enemy.drop);
+    if (!item) return;
+    this.player.addItem(item);
+    this.audio.play('item');
+    this.hudNote = `FOUND ${item.name.toUpperCase()}`;
+    this.noteUntil = this.frame + 50;
+  }
+
   // A slain enemy stays slain, hands over its experience, and leaves behind
   // whatever deadItem names.
   defeat(enemy) {
@@ -263,7 +276,12 @@ class Game {
       if (enemy.dead) continue;
       enemy.update(ctx);
 
-      if (sword && enemy.flash === 0 && overlaps(sword, enemy.body)) {
+      if (enemy.holdable && overlaps(player.body, enemy.body)) {
+        this.collect(enemy);
+        continue;
+      }
+
+      if (sword && enemy.killable && enemy.flash === 0 && overlaps(sword, enemy.body)) {
         const killed = enemy.hurt(player.attack, player.x, player.y);
         this.audio.play(killed ? 'kill' : 'hit');
         if (killed) this.defeat(enemy);

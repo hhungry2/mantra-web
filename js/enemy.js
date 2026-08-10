@@ -8,6 +8,21 @@ import { TILE } from './config.js';
 import { box } from './collision.js';
 import { run, isBoss } from './enemy_ai.js';
 
+// Enemy attribute bits, from GameTypes.h.
+export const ATTR = {
+  IS_ENEMY: 1,
+  CAN_BE_HELD: 2,
+  KILLABLE: 4,
+  CAN_FIRE: 8,
+  PUSHABLE: 16,
+  INSUBSTANTIAL: 32,
+  PERMANENT: 64,
+  IS_MISSILE: 128,
+  ORIGINAL_TO_ROOM: 256,
+  IS_MULTI_FACING: 512,
+  IS_BOSS: 1024,
+};
+
 const BODY_W = 20;
 const BODY_H = 16;
 const BOSS_BODY = 30;
@@ -37,7 +52,15 @@ export class Enemy {
     this.fires = record.fires;
     this.drop = record.drop;
     this.message = record.message;
+    this.attributes = record.attributes;
     this.boss = isBoss(record.ai);
+    this.killable = !!(record.attributes & ATTR.KILLABLE);
+    this.solid = !(record.attributes & ATTR.INSUBSTANTIAL);
+    this.holdable = !!(record.attributes & ATTR.CAN_BE_HELD);
+    this.multiFacing = !!(record.attributes & ATTR.IS_MULTI_FACING);
+    this.facing = record.facing > 0 ? record.facing : 1;
+    this.legCounter = 0;
+    this.legState = 0;
 
     this.vx = 0;
     this.vy = 0;
@@ -55,7 +78,16 @@ export class Enemy {
     return box(this.x, this.y, size, this.boss ? BOSS_BODY : BODY_H);
   }
 
+  // Sprite = spriteRef + legState, and a creature drawn from four sides adds
+  // two frames per facing. That is the arithmetic in drawEnemiesWithBitmap().
+  get frame() {
+    let sprite = this.sprite + this.legState;
+    if (this.multiFacing) sprite += (this.facing - 1) * 2;
+    return sprite;
+  }
+
   hurt(amount, fromX, fromY) {
+    if (!this.killable) return false;
     const actual = Math.max(1, amount - Math.max(0, this.armor));
     this.hp -= actual;
     this.flash = HIT_FLASH;
@@ -69,6 +101,9 @@ export class Enemy {
 
   update(ctx) {
     this.animTimer++;
+    // legState flips every fourth frame, which is the walking shuffle.
+    this.legCounter++;
+    if (this.legCounter % 4 === 0) this.legState = 1 - this.legState;
     if (this.flash > 0) this.flash--;
     if (this.knock) {
       ctx.move(this, this.knock.x, this.knock.y);
@@ -76,7 +111,17 @@ export class Enemy {
       if (this.knock.frames <= 0) this.knock = null;
       return;   // staggered enemies do not also walk
     }
+    const wasX = this.x;
+    const wasY = this.y;
     run(this, ctx);
+    this.face(this.x - wasX, this.y - wasY);
+  }
+
+  // Facings are 1 left, 2 down, 3 right, 4 up, two frames apiece.
+  face(dx, dy) {
+    if (!dx && !dy) return;
+    if (Math.abs(dx) >= Math.abs(dy)) this.facing = dx < 0 ? 1 : 3;
+    else this.facing = dy > 0 ? 2 : 4;
   }
 }
 

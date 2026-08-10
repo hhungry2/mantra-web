@@ -70,7 +70,7 @@ export class Renderer {
       if (e.isBoss) {
         drawables.push({ y: e.y, draw: () => this.drawBossSprite(e.currentFrame, e.x, e.y) });
       } else {
-        drawables.push({ y: e.y, draw: () => this.drawSprite(e.sprite, e.x - SPRITE / 2, e.y + SPRITE_OFFSET_Y) });
+        drawables.push({ y: e.y, draw: () => this.drawSprite(e.frame, e.x - SPRITE / 2, e.y + SPRITE_OFFSET_Y) });
       }
     }
 
