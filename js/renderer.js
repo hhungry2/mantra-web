@@ -105,17 +105,19 @@ export class Renderer {
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#c5c6c7';
     ctx.fillText('HP', 8, top + 12);
-    ctx.fillText('ST', 130, top + 12);
+    ctx.fillText('ST', 125, top + 12);
+    ctx.fillText('XP', 242, top + 12);
 
-    meter(ctx, 28, top + 7, 90, 10, player.hp / player.hpMax, '#e63946');
-    meter(ctx, 150, top + 7, 90, 10, player.stamina / 100, '#48cae4');
+    meter(ctx, 28, top + 7, 85, 10, player.hp / player.hpMax, '#e63946');
+    meter(ctx, 145, top + 7, 85, 10, player.stamina / 100, '#48cae4');
+    meter(ctx, 262, top + 7, 50, 10, player.xp / player.nextXp, '#a855f7');
 
     ctx.fillStyle = '#c5c6c7';
-    ctx.fillText(`LV ${player.level}`, 252, top + 12);
+    ctx.fillText(`LV${player.level}`, 320, top + 12);
     ctx.fillStyle = '#ffb703';
-    ctx.fillText(`GOLD ${player.gold}`, 300, top + 12);
+    ctx.fillText(`$${player.gold}`, 355, top + 12);
     ctx.fillStyle = '#8892b0';
-    ctx.fillText(info, 396, top + 12);
+    ctx.fillText(info, 410, top + 12);
   }
 
   drawBanner(lines) {

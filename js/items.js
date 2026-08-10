@@ -1,0 +1,131 @@
+// Item database, equipment stats, and item usage logic.
+
+export const ITEM_TYPES = {
+  WEAPON: 'weapon',
+  ARMOR: 'armor',
+  CONSUMABLE: 'consumable',
+  KEY: 'key',
+};
+
+export const ITEMS = {
+  wooden_sword: {
+    id: 'wooden_sword',
+    name: 'Wooden Sword',
+    type: ITEM_TYPES.WEAPON,
+    attack: 4,
+    price: 20,
+    desc: 'Basic wooden sword crafted from sturdy oak.',
+  },
+  bronze_sword: {
+    id: 'bronze_sword',
+    name: 'Bronze Sword',
+    type: ITEM_TYPES.WEAPON,
+    attack: 8,
+    price: 60,
+    desc: 'Reliable blade forged from bronze.',
+  },
+  silver_sword: {
+    id: 'silver_sword',
+    name: 'Silver Sword',
+    type: ITEM_TYPES.WEAPON,
+    attack: 15,
+    price: 180,
+    desc: 'Gleaming silver blade with high precision.',
+  },
+  flame_sword: {
+    id: 'flame_sword',
+    name: 'Flame Sword',
+    type: ITEM_TYPES.WEAPON,
+    attack: 25,
+    price: 450,
+    desc: 'Imbued with the heat of the Fire Mantra.',
+  },
+  ultimate_sword: {
+    id: 'ultimate_sword',
+    name: 'Ultimate Sword',
+    type: ITEM_TYPES.WEAPON,
+    attack: 40,
+    price: 1000,
+    desc: 'Legendary sword capable of felling any foe.',
+  },
+
+  cloth_armor: {
+    id: 'cloth_armor',
+    name: 'Cloth Armor',
+    type: ITEM_TYPES.ARMOR,
+    defense: 2,
+    price: 25,
+    desc: 'Light cloth tunic offering basic protection.',
+  },
+  leather_armor: {
+    id: 'leather_armor',
+    name: 'Leather Armor',
+    type: ITEM_TYPES.ARMOR,
+    defense: 6,
+    price: 80,
+    desc: 'Toughened leather armor.',
+  },
+  iron_shield: {
+    id: 'iron_shield',
+    name: 'Iron Shield',
+    type: ITEM_TYPES.ARMOR,
+    defense: 12,
+    price: 200,
+    desc: 'Heavy iron shield to block enemy blows.',
+  },
+  golden_armor: {
+    id: 'golden_armor',
+    name: 'Golden Armor',
+    type: ITEM_TYPES.ARMOR,
+    defense: 22,
+    price: 600,
+    desc: 'Radiant armor blessed by ancient magic.',
+  },
+
+  potion: {
+    id: 'potion',
+    name: 'Health Potion',
+    type: ITEM_TYPES.CONSUMABLE,
+    heal: 10,
+    price: 15,
+    desc: 'Restores 10 HP instantly.',
+  },
+  super_potion: {
+    id: 'super_potion',
+    name: 'Super Potion',
+    type: ITEM_TYPES.CONSUMABLE,
+    heal: 25,
+    price: 40,
+    desc: 'Restores 25 HP instantly.',
+  },
+  elixir: {
+    id: 'elixir',
+    name: 'Elixir of Life',
+    type: ITEM_TYPES.CONSUMABLE,
+    healFull: true,
+    price: 120,
+    desc: 'Fully restores HP & Stamina.',
+  },
+
+  small_key: {
+    id: 'small_key',
+    name: 'Small Key',
+    type: ITEM_TYPES.KEY,
+    price: 30,
+    desc: 'Unlocks locked doors and gates.',
+  },
+  power_mantra: {
+    id: 'power_mantra',
+    name: 'Power Mantra',
+    type: ITEM_TYPES.KEY,
+    price: 0,
+    desc: 'Sacred relic containing ancient energy.',
+  },
+  fire_mantra: {
+    id: 'fire_mantra',
+    name: 'Fire Mantra',
+    type: ITEM_TYPES.KEY,
+    price: 0,
+    desc: 'One of the 5 legendary Mantras.',
+  },
+};

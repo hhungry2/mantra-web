@@ -1,17 +1,18 @@
-// Saric: movement, stamina, and the sword swing.
+// Saric: movement, stamina, XP/Level progression, inventory & equipment.
 
 import {
   DIR_LEFT, DIR_RIGHT, DIR_DOWN, DIR_UP,
   SARIC_WALK_A, SARIC_WALK_B, SARIC_SWING_A, SARIC_SWING_B, SWORD_SPRITE,
 } from './config.js';
 import { box } from './collision.js';
+import { ITEMS } from './items.js';
 
 const WALK_SPEED = 2;
 const RUN_SPEED = 3.5;
 const STAMINA_MAX = 100;
 const STAMINA_DRAIN = 1.6;
 const STAMINA_REGEN = 0.7;
-const STAMINA_FLOOR = 6;      // below this, running is refused until it recovers
+const STAMINA_FLOOR = 6;
 
 const SWING_FRAMES = 8;
 const SWING_COOLDOWN = 4;
@@ -20,7 +21,6 @@ const INVULN_FRAMES = 25;
 const BODY_W = 16;
 const BODY_H = 12;
 
-// Sword reach measured from the middle of Saric's body.
 const SWORD_REACH = 16;
 const SWORD_BOX = 22;
 
@@ -32,8 +32,26 @@ export class Saric {
     this.hp = 20;
     this.hpMax = 20;
     this.stamina = STAMINA_MAX;
+    this.gold = 50;
+
+    // Progression
     this.level = 1;
-    this.gold = 0;
+    this.xp = 0;
+    this.nextXp = 30;
+
+    // Stats
+    this.baseAttack = 4;
+    this.baseDefense = 0;
+
+    // Inventory & Equipment
+    this.weapon = ITEMS.wooden_sword;
+    this.armor = null;
+    this.inventory = [
+      ITEMS.wooden_sword,
+      ITEMS.potion,
+      ITEMS.potion,
+    ];
+
     this.walkTimer = 0;
     this.moving = false;
     this.running = false;
@@ -44,20 +62,75 @@ export class Saric {
     this.dead = false;
   }
 
+  get attack() {
+    const wBonus = this.weapon ? (this.weapon.attack || 0) : 0;
+    return this.baseAttack + wBonus;
+  }
+
+  get defense() {
+    const aBonus = this.armor ? (this.armor.defense || 0) : 0;
+    return this.baseDefense + aBonus;
+  }
+
   get body() {
     return box(this.x, this.y, BODY_W, BODY_H);
   }
 
-  // The area the blade sweeps this frame, or null when not swinging.
   get swordBox() {
     if (this.swing <= 0) return null;
     const [dx, dy] = DIR_VECTORS[this.dir];
     return box(this.x + dx * SWORD_REACH, this.y + dy * SWORD_REACH, SWORD_BOX, SWORD_BOX);
   }
 
-  hurt(amount, fromX, fromY) {
+  addXp(amount) {
+    this.xp += amount;
+    let leveledUp = false;
+    while (this.xp >= this.nextXp) {
+      this.level++;
+      this.nextXp = Math.round(this.nextXp * 2.2);
+      this.hpMax += 5;
+      this.hp = this.hpMax;
+      this.stamina = STAMINA_MAX;
+      this.baseAttack += 2;
+      this.baseDefense += 1;
+      leveledUp = true;
+    }
+    return leveledUp;
+  }
+
+  addItem(item) {
+    this.inventory.push(item);
+  }
+
+  equip(item) {
+    if (item.type === 'weapon') {
+      this.weapon = item;
+    } else if (item.type === 'armor') {
+      this.armor = item;
+    }
+  }
+
+  useItem(item) {
+    const idx = this.inventory.indexOf(item);
+    if (idx < 0) return false;
+
+    if (item.healFull) {
+      this.hp = this.hpMax;
+      this.stamina = STAMINA_MAX;
+      this.inventory.splice(idx, 1);
+      return true;
+    } else if (item.heal) {
+      this.hp = Math.min(this.hpMax, this.hp + item.heal);
+      this.inventory.splice(idx, 1);
+      return true;
+    }
+    return false;
+  }
+
+  hurt(rawAmount, fromX, fromY) {
     if (this.invuln > 0 || this.dead) return false;
-    this.hp = Math.max(0, this.hp - amount);
+    const actualDamage = Math.max(1, rawAmount - this.defense);
+    this.hp = Math.max(0, this.hp - actualDamage);
     this.invuln = INVULN_FRAMES;
     const dx = this.x - fromX;
     const dy = this.y - fromY;
@@ -99,8 +172,6 @@ export class Saric {
     }
 
     if (this.moving) {
-      // Vertical wins ties so the sprite faces the way most recently pressed
-      // along the axis that actually reads on screen.
       if (dy < 0) this.dir = DIR_UP;
       else if (dy > 0) this.dir = DIR_DOWN;
       if (dx < 0) this.dir = DIR_LEFT;
@@ -122,7 +193,6 @@ export class Saric {
     }
   }
 
-  // Axis-separated so sliding along a wall works instead of sticking.
   step(world, screen, dx, dy) {
     if (dx !== 0) {
       const nx = this.x + dx;
@@ -134,7 +204,6 @@ export class Saric {
     }
   }
 
-  // Sprite id for this frame, plus the sword overlay while swinging.
   frames() {
     if (this.swing > 0) {
       const base = this.swing > SWING_FRAMES / 2 ? SARIC_SWING_A : SARIC_SWING_B;

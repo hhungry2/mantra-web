@@ -67,27 +67,28 @@ canvas#game-canvas {
   background-color: #000;
 }
 
-#overlay-screen {
+/* UI Overlays & Modals */
+.ui-overlay {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(11, 12, 16, 0.85);
+  background: rgba(11, 12, 16, 0.82);
   backdrop-filter: blur(4px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 10;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease;
 }
 
-#overlay-screen.hidden {
-  display: none;
+.ui-overlay.hidden {
+  display: none !important;
 }
 
-#overlay-title {
+#overlay-screen h2 {
   font-size: 2.5rem;
   color: var(--accent-color);
   margin-bottom: 1rem;
@@ -118,6 +119,184 @@ canvas#game-canvas {
 .btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(102, 252, 241, 0.5);
+}
+
+/* Dialogue Box */
+.dialog-box {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  background: var(--panel-bg);
+  border: 3px solid var(--accent-color);
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.9);
+}
+
+.dialog-speaker {
+  color: var(--accent-color);
+  font-weight: bold;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.dialog-body {
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #fff;
+}
+
+.dialog-prompt {
+  font-size: 0.8rem;
+  color: #8892b0;
+  margin-top: 0.8rem;
+  text-align: right;
+}
+
+/* Modal Boxes */
+.modal-box {
+  background: var(--panel-bg);
+  border: 2px solid var(--accent-color);
+  border-radius: 8px;
+  width: 85%;
+  height: 80%;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.modal-header h2 {
+  color: var(--accent-color);
+  font-size: 1.4rem;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  font-size: 1.8rem;
+  cursor: pointer;
+}
+
+.close-btn:hover {
+  color: #fff;
+}
+
+.modal-body {
+  display: flex;
+  gap: 1.5rem;
+  flex: 1;
+  overflow: hidden;
+}
+
+.stats-panel {
+  width: 30%;
+  background: rgba(11, 12, 16, 0.6);
+  border-radius: 6px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 0.95rem;
+}
+
+.stats-panel h3 {
+  color: var(--accent-color);
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--accent-hover);
+  padding-bottom: 0.25rem;
+}
+
+.items-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tab-btn {
+  background: rgba(11, 12, 16, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.tab-btn.active {
+  background: var(--accent-color);
+  color: #0b0c10;
+  border-color: var(--accent-color);
+}
+
+.item-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.item-row {
+  background: rgba(11, 12, 16, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.item-name {
+  font-weight: bold;
+  color: #fff;
+}
+
+.equipped-tag {
+  color: var(--accent-color);
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+
+.item-desc {
+  font-size: 0.85rem;
+  color: #8892b0;
+}
+
+.gold-text {
+  color: var(--gold-color);
+}
+
+.action-btn {
+  background: var(--accent-color);
+  color: #0b0c10;
+  border: none;
+  padding: 0.35rem 0.85rem;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.action-btn:hover {
+  background: var(--accent-hover);
 }
 
 #controls-guide {

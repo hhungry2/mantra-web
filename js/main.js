@@ -1,9 +1,8 @@
 // Boot and game loop.
 //
-// Phase 2: World Connection
-// Enables grid-wide screen transitions (16x16 world), door warps,
-// persistent defeated enemy tracking via bitmasks, expanded enemy AI,
-// and enemy ranged projectiles.
+// Phase 3: RPG Systems & Progression
+// Integrates XP/Level progression, Inventory & Equipment tabbed UI,
+// NPC/Signboard dialogue overlays, Shop transactions, and Key item handling.
 
 import {
   TILE, FRAME_MS, MAX_CATCHUP_FRAMES, START_SCREEN, START_TILE, VIEW_W, VIEW_H,
@@ -16,34 +15,53 @@ import { Saric } from './saric.js';
 import { spawnScreen, makeMover, EnemyProjectile } from './enemy.js';
 import { overlaps } from './collision.js';
 import { Audio } from './audio.js';
-
-const SWORD_DAMAGE = 4;
+import { UI } from './ui.js';
 
 class Game {
   constructor(assets, canvas) {
     this.world = new World(assets);
     this.renderer = new Renderer(canvas, assets);
     this.templates = assets.templates;
+    this.textMsgs = assets.textMsgs || [];
     this.input = new Input();
     this.audio = new Audio();
 
-    // Track defeated enemies bitmask for all 256 screens
+    // Defeated enemies bitmask for all 256 screens
     this.defeatedMasks = new Uint16Array(256);
-
-    this.screenIndex = START_SCREEN;
-    this.projectiles = [];
-    this.enter(START_SCREEN);
 
     this.player = new Saric(
       START_TILE.x * TILE + TILE / 2,
       START_TILE.y * TILE + TILE / 2,
     );
+
+    this.ui = new UI(this);
+
+    this.screenIndex = START_SCREEN;
+    this.projectiles = [];
+    this.enter(START_SCREEN);
+
     this.frame = 0;
     this.hudNote = '';
 
+    // Key handlers
     this.input.on('KeyM', () => {
       this.hudNote = this.audio.toggle() ? 'SOUND ON' : 'SOUND OFF';
       this.noteUntil = this.frame + 40;
+    });
+
+    this.input.on('KeyI', () => this.ui.toggleInventory());
+    this.input.on('Tab', () => this.ui.toggleInventory());
+
+    this.input.on('Space', () => {
+      if (this.ui.dialogActive) {
+        this.ui.hideDialog();
+      } else {
+        this.checkInteract();
+      }
+    });
+
+    this.input.on('Enter', () => {
+      if (this.ui.dialogActive) this.ui.hideDialog();
     });
   }
 
@@ -56,6 +74,28 @@ class Game {
 
     if (spawnX !== null && this.player) this.player.x = spawnX;
     if (spawnY !== null && this.player) this.player.y = spawnY;
+  }
+
+  checkInteract() {
+    const player = this.player;
+    const tx = Math.floor(player.x / TILE);
+    const ty = Math.floor(player.y / TILE);
+    const mod = this.world.modifierAt(this.screen, tx, ty);
+
+    // Store / Shop modifier
+    if ((mod & 0x300) === 0x300 || mod === 772) {
+      this.ui.toggleShop(true);
+      return;
+    }
+
+    // Signboard / Message trigger
+    if (this.textMsgs.length > 0) {
+      const msgIdx = (this.screenIndex + tx + ty) % this.textMsgs.length;
+      const msg = this.textMsgs[msgIdx];
+      if (msg) {
+        this.ui.showDialog(`Screen ${this.screenIndex} Notice`, msg);
+      }
+    }
   }
 
   checkScreenTransitions() {
@@ -90,6 +130,10 @@ class Game {
 
   tick() {
     this.frame++;
+
+    // Pause physics if modal or dialog is open
+    if (this.ui.inventoryOpen || this.ui.shopOpen || this.ui.dialogActive) return;
+
     const player = this.player;
     player.update(this.input, this.world, this.screen);
     if (player.swungThisFrame) this.audio.play('sword');
@@ -115,12 +159,19 @@ class Game {
       enemy.update(ctx);
 
       if (sword && enemy.flash === 0 && overlaps(sword, enemy.body)) {
-        const killed = enemy.hurt(SWORD_DAMAGE, player.x, player.y);
+        const killed = enemy.hurt(player.attack, player.x, player.y);
         this.audio.play(killed ? 'kill' : 'hit');
         if (killed) {
-          // Record defeated enemy in screen's bitmask
+          // Record defeated enemy
           this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
           player.gold += 5;
+          const xpReward = Math.max(5, enemy.hp * 2);
+          const leveledUp = player.addXp(xpReward);
+          if (leveledUp) {
+            this.audio.play('kill');
+            this.hudNote = 'LEVEL UP!';
+            this.noteUntil = this.frame + 60;
+          }
         }
       }
 
@@ -183,10 +234,18 @@ async function boot() {
     return;
   }
 
+  // Load text.json messages
+  try {
+    const res = await fetch('assets/data/text.json');
+    if (res.ok) assets.textMsgs = await res.json();
+  } catch (e) {
+    assets.textMsgs = [];
+  }
+
   const game = new Game(assets, canvas);
-  window.mantra = game; // handle for debugging from console
+  window.mantra = game; // debug handle
   game.draw();
-  message.textContent = 'Phase 2: Explore the 256-screen world grid, fight unique AI, & clear screens.';
+  message.textContent = 'Phase 3: Complete RPG Systems (Inventory, Equipment, XP/Level Up, Dialogue, Shops).';
   button.disabled = false;
 
   button.addEventListener('click', async () => {
