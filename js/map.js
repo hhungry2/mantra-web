@@ -1,12 +1,13 @@
 // Screen data, terrain queries, and screen transitions.
 //
-// Collision is per pixel: every map tile ships a mask (MapGraphics 3000+) that
-// marks which of its pixels block movement. Phase 2 enables grid-wide screen
-// transitions (16x16 world) and door/warp tile handling.
+// Terrain collision is driven by map tile modifiers:
+// Modifiers 4 (wall/water/tree), 3, 7, 8, 96, 129 are solid impassable terrain.
+// Modifiers 260 (Bridge!), 342 (Grass), 86 (Path), 264 (Door), 0 (Ground) are walkable.
 
 import { TILE, SCREEN_COLS, VIEW_W, VIEW_H, WORLD_COLS, WORLD_ROWS } from './config.js';
 
 const SAMPLE_STEP = 4;
+const SOLID_MODIFIERS = new Set([4, 3, 7, 8, 96, 129]);
 
 export class World {
   constructor(assets) {
@@ -49,11 +50,10 @@ export class World {
 
     const tx = px >> 5;
     const ty = py >> 5;
-    const atlas = this.tileIndex.get(this.tileAt(screen, tx, ty));
-    if (atlas === undefined) return false;
-    const ax = (atlas % this.maskCols) * TILE + (px & 31);
-    const ay = Math.floor(atlas / this.maskCols) * TILE + (py & 31);
-    return this.mask.solid[ay * this.mask.width + ax] === 1;
+    const mod = this.modifierAt(screen, tx, ty);
+
+    // Solid terrain check based on tile modifiers
+    return SOLID_MODIFIERS.has(mod);
   }
 
   boxHitsWall(screen, b) {
@@ -87,8 +87,8 @@ export class World {
     const tx = px >> 5;
     const ty = py >> 5;
     const mod = this.modifierAt(screen, tx, ty);
-    if (mod & 0x100) {
-      // Warp tile modifier (e.g. door/portal)
+    // Door / Portal warp modifiers (e.g. 772, 1284, 4868, 4950)
+    if ((mod & 0x100) && mod !== 260 && mod !== 264 && mod !== 342) {
       const idx = ty * SCREEN_COLS + tx;
       const extra = screen.extra ? screen.extra[idx] : 0;
       if (extra && extra !== 0) {
