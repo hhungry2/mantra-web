@@ -35,6 +35,7 @@ class Game {
     this.world = new World(assets);
     this.renderer = new Renderer(canvas, assets);
     this.templates = assets.templates;
+    this.gfx = assets.gfx;
     this.textMsgs = assets.textMsgs || [];
     this.stores = assets.stores || [];
     this.currentStore = null;
@@ -298,9 +299,9 @@ class Game {
     r.drawHud(this.player, note);
 
     if (this.player.dead) {
-      r.drawBanner(['GAME OVER', 'Press V to Load Game or Reload page']);
+      r.drawEndCard(this.renderer.lose, 'Press V to load a saved game');
     } else if (this.victory) {
-      r.drawBanner(['THE FIVE MANTRAS', 'Bring them to Castle Blednock']);
+      r.drawEndCard(this.renderer.win, 'Bring them to Castle Blednock');
     }
   }
 }
@@ -329,10 +330,18 @@ async function boot() {
   message.textContent = 'Mantra Web Port (Full Release: 256 Screens, RPG Systems, Bosses, Saves, & Touch Controls)';
   button.disabled = false;
 
+  const story = document.getElementById('story-screen');
+  const storyButton = document.getElementById('story-btn');
+
   button.addEventListener('click', async () => {
     overlay.classList.add('hidden');
+    story.classList.remove('hidden');
     await game.audio.start();
     game.audio.playMusic(0);
+  });
+
+  storyButton.addEventListener('click', () => {
+    story.classList.add('hidden');
     run(game);
   });
 }

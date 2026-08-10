@@ -3,9 +3,21 @@
 import { ITEM_TYPES, getItem } from './items.js';
 import { SaveManager } from './save.js';
 
+// Items carry the icon id their artwork sits under in icons32.png; a few of
+// them (the Rapier, for one) have no icon in the file, so this can come back
+// empty and the row just goes without.
+function iconStyle(item, gfx) {
+  const index = gfx.icons32.ids.indexOf(item.icon);
+  if (index < 0) return '';
+  const x = (index % gfx.icons32.cols) * gfx.icons32.size;
+  const y = Math.floor(index / gfx.icons32.cols) * gfx.icons32.size;
+  return `background-image:url(assets/icons32.png);background-position:-${x}px -${y}px`;
+}
+
 export class UI {
   constructor(game) {
     this.game = game;
+    this.gfx = game.gfx;
     this.activeTab = ITEM_TYPES.WEAPON;
     this.dialogText = null;
     this.dialogTitle = null;
@@ -214,8 +226,11 @@ export class UI {
         || (p.armor && p.armor.code === item.code);
 
       row.innerHTML = `
-        <div class="item-name">${item.name} ${isEquipped ? '<span class="equipped-tag">[Equipped]</span>' : ''}</div>
-        <div class="item-desc">${item.desc || ''}</div>
+        <div class="item-icon" style="${iconStyle(item, this.gfx)}"></div>
+        <div class="item-text">
+          <div class="item-name">${item.name} ${isEquipped ? '<span class="equipped-tag">[Equipped]</span>' : ''}</div>
+          <div class="item-desc">${item.desc || ''}</div>
+        </div>
         <div class="item-actions"></div>
       `;
 
@@ -276,8 +291,11 @@ export class UI {
       const row = document.createElement('div');
       row.className = 'item-row';
       row.innerHTML = `
-        <div class="item-name">${item.name} - <span class="gold-text">${entry.price} Gold</span></div>
-        <div class="item-desc">${item.desc}</div>
+        <div class="item-icon" style="${iconStyle(item, this.gfx)}"></div>
+        <div class="item-text">
+          <div class="item-name">${item.name} - <span class="gold-text">${entry.price} Gold</span></div>
+          <div class="item-desc">${item.desc}</div>
+        </div>
         <div class="item-actions">
           <button class="action-btn buy-btn">Buy</button>
         </div>

@@ -12,6 +12,8 @@ export class Renderer {
     this.ctx = canvas.getContext('2d');
     this.ctx.imageSmoothingEnabled = false;
     this.tiles = assets.tiles;
+    this.win = assets.win;
+    this.lose = assets.lose;
     this.sprites = assets.sprites;
     this.bosses = assets.bosses;
     this.tileIndex = assets.tileIndex;
@@ -131,6 +133,22 @@ export class Renderer {
     ctx.fillText(`$${player.gold}`, 355, top + 12);
     ctx.fillStyle = '#8892b0';
     ctx.fillText(info, 410, top + 12);
+  }
+
+  // The original's win and lose cards, centred over the darkened field.
+  drawEndCard(image, subtitle) {
+    const ctx = this.ctx;
+    ctx.fillStyle = 'rgba(11, 12, 16, 0.78)';
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    const x = Math.round((VIEW_W - image.width) / 2);
+    const y = Math.round((VIEW_H - image.height) / 2) - 12;
+    ctx.drawImage(image, x, y);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#c5c6c7';
+    ctx.font = '12px monospace';
+    ctx.fillText(subtitle, VIEW_W / 2, y + image.height + 18);
+    ctx.textAlign = 'left';
   }
 
   drawBanner(lines) {

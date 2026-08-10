@@ -411,3 +411,40 @@ canvas#game-canvas {
   font-family: monospace;
   font-weight: bold;
 }
+
+.item-icon {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  margin-right: 0.75rem;
+  image-rendering: pixelated;
+}
+
+.item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.shop-greeting {
+  color: var(--accent-color);
+  font-style: italic;
+  margin-bottom: 1rem;
+}
+
+#overlay-logo {
+  image-rendering: pixelated;
+  width: 354px;
+  max-width: 80%;
+  margin-bottom: 1rem;
+}
+
+#story-screen {
+  background: #000;
+  gap: 1rem;
+}
+
+#story-screen img {
+  image-rendering: pixelated;
+  width: 468px;
+  max-width: 96%;
+}

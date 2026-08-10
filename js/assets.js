@@ -30,13 +30,15 @@ function readMask(img) {
 }
 
 export async function loadAssets() {
-  const [tiles, maskImage, sprites, bosses, icons, map, gfx, enemies, items, stores, text] =
+  const [tiles, maskImage, sprites, bosses, icons, win, lose, map, gfx, enemies, items, stores, text] =
     await Promise.all([
       loadImage(BASE + 'tiles.png'),
       loadImage(BASE + 'tile_masks.png'),
       loadImage(BASE + 'sprites.png'),
       loadImage(BASE + 'bosses.png'),
       loadImage(BASE + 'icons32.png'),
+      loadImage(BASE + 'ui/win.png'),
+      loadImage(BASE + 'ui/lose.png'),
       loadJSON(BASE + 'data/map.json'),
       loadJSON(BASE + 'data/gfx.json'),
       loadJSON(BASE + 'data/enemies.json'),
@@ -50,7 +52,7 @@ export async function loadAssets() {
   const iconIndex = new Map(gfx.icons32.ids.map((id, i) => [id, i]));
 
   return {
-    tiles, sprites, bosses, icons, map, gfx,
+    tiles, sprites, bosses, icons, win, lose, map, gfx,
     templates: enemies.templates,
     items: items.items,
     stores: stores.stores,

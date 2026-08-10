@@ -2,16 +2,18 @@
 
 import { parseMod, ModPlayer } from './mod.js';
 
+// Nothing in the data files records which effect is which sound, so these
+// names are read off their lengths: the short ones are blows, the long ones
+// are the death and the fanfare. Each of the eight is used once.
 const SFX_FILES = {
-  sword: 'assets/sfx/sfx_128.wav',
-  hit: 'assets/sfx/sfx_129.wav',
-  kill: 'assets/sfx/sfx_130.wav',
-  item: 'assets/sfx/sfx_131.wav',
-  door: 'assets/sfx/sfx_133.wav',
-  hurt: 'assets/sfx/sfx_133.wav',
-  die: 'assets/sfx/sfx_134.wav',
-  magic: 'assets/sfx/sfx_137.wav',
-  fanfare: 'assets/sfx/sfx_138.wav',
+  sword: 'assets/sfx/sfx_128.wav',   // 0.11s
+  hurt: 'assets/sfx/sfx_133.wav',    // 0.12s
+  hit: 'assets/sfx/sfx_129.wav',     // 0.16s
+  kill: 'assets/sfx/sfx_130.wav',    // 0.21s
+  door: 'assets/sfx/sfx_137.wav',    // 0.37s
+  item: 'assets/sfx/sfx_131.wav',    // 0.54s
+  die: 'assets/sfx/sfx_134.wav',     // 0.86s
+  fanfare: 'assets/sfx/sfx_138.wav', // 0.85s
 };
 
 const MUSIC_FILES = [
