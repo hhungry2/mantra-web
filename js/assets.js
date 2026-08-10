@@ -17,23 +17,10 @@ async function loadJSON(src) {
   return res.json();
 }
 
-function readMask(img) {
-  const canvas = document.createElement('canvas');
-  canvas.width = img.width;
-  canvas.height = img.height;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(img, 0, 0);
-  const { data } = ctx.getImageData(0, 0, img.width, img.height);
-  const solid = new Uint8Array(img.width * img.height);
-  for (let i = 0; i < solid.length; i++) solid[i] = data[i * 4 + 3] > 127 ? 1 : 0;
-  return { width: img.width, height: img.height, solid };
-}
-
 export async function loadAssets() {
-  const [tiles, maskImage, sprites, bosses, icons, win, lose, map, gfx, enemies, items, stores, text] =
+  const [tiles, sprites, bosses, icons, win, lose, map, gfx, items, stores, text] =
     await Promise.all([
       loadImage(BASE + 'tiles.png'),
-      loadImage(BASE + 'tile_masks.png'),
       loadImage(BASE + 'sprites.png'),
       loadImage(BASE + 'bosses.png'),
       loadImage(BASE + 'icons32.png'),
@@ -41,7 +28,6 @@ export async function loadAssets() {
       loadImage(BASE + 'ui/lose.png'),
       loadJSON(BASE + 'data/map.json'),
       loadJSON(BASE + 'data/gfx.json'),
-      loadJSON(BASE + 'data/enemies.json'),
       loadJSON(BASE + 'data/items.json'),
       loadJSON(BASE + 'data/stores.json'),
       loadJSON(BASE + 'data/text.json'),
@@ -53,11 +39,9 @@ export async function loadAssets() {
 
   return {
     tiles, sprites, bosses, icons, win, lose, map, gfx,
-    templates: enemies.templates,
     items: items.items,
     stores: stores.stores,
     textMsgs: text,
-    mask: readMask(maskImage),
     tileIndex, spriteIndex, iconIndex,
   };
 }
