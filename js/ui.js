@@ -1,6 +1,7 @@
-// RPG UI Overlays: Dialogue Textbox, Tabbed Inventory Modal, and Shop Window.
+// RPG UI Overlays: Dialogue Textbox, Tabbed Inventory Modal, Shop Window, and Save/Load Manager.
 
 import { ITEM_TYPES, ITEMS } from './items.js';
+import { SaveManager } from './save.js';
 
 export class UI {
   constructor(game) {
@@ -12,11 +13,14 @@ export class UI {
 
     this.inventoryOpen = false;
     this.shopOpen = false;
+    this.saveOpen = false;
 
     this.createElements();
   }
 
   createElements() {
+    const container = document.getElementById('game-container');
+
     // 1. Dialogue overlay
     this.dialogEl = document.createElement('div');
     this.dialogEl.id = 'dialog-overlay';
@@ -28,7 +32,7 @@ export class UI {
         <div class="dialog-prompt">Press Space / Enter to continue...</div>
       </div>
     `;
-    document.getElementById('game-container').appendChild(this.dialogEl);
+    container.appendChild(this.dialogEl);
 
     // 2. Inventory Modal
     this.invEl = document.createElement('div');
@@ -63,7 +67,7 @@ export class UI {
         </div>
       </div>
     `;
-    document.getElementById('game-container').appendChild(this.invEl);
+    container.appendChild(this.invEl);
 
     // 3. Shop Modal
     this.shopEl = document.createElement('div');
@@ -83,7 +87,24 @@ export class UI {
         </div>
       </div>
     `;
-    document.getElementById('game-container').appendChild(this.shopEl);
+    container.appendChild(this.shopEl);
+
+    // 4. Save / Load Modal
+    this.saveEl = document.createElement('div');
+    this.saveEl.id = 'save-modal';
+    this.saveEl.className = 'ui-overlay hidden';
+    this.saveEl.innerHTML = `
+      <div class="modal-box">
+        <div class="modal-header">
+          <h2>SAVE / LOAD GAME</h2>
+          <button id="save-close-btn" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="save-slots-list" class="save-slots-grid"></div>
+        </div>
+      </div>
+    `;
+    container.appendChild(this.saveEl);
 
     this.bindEvents();
   }
@@ -91,9 +112,10 @@ export class UI {
   bindEvents() {
     document.getElementById('inv-close-btn').addEventListener('click', () => this.toggleInventory(false));
     document.getElementById('shop-close-btn').addEventListener('click', () => this.toggleShop(false));
+    document.getElementById('save-close-btn').addEventListener('click', () => this.toggleSave(false));
 
     this.invEl.querySelectorAll('.tab-btn').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', () => {
         this.invEl.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         this.activeTab = btn.dataset.tab;
@@ -120,7 +142,9 @@ export class UI {
     this.inventoryOpen = show !== undefined ? show : !this.inventoryOpen;
     if (this.inventoryOpen) {
       this.shopOpen = false;
+      this.saveOpen = false;
       this.shopEl.classList.add('hidden');
+      this.saveEl.classList.add('hidden');
       this.hideDialog();
       this.updateStatsDisplay();
       this.renderInventoryItems();
@@ -134,12 +158,29 @@ export class UI {
     this.shopOpen = show !== undefined ? show : !this.shopOpen;
     if (this.shopOpen) {
       this.inventoryOpen = false;
+      this.saveOpen = false;
       this.invEl.classList.add('hidden');
+      this.saveEl.classList.add('hidden');
       this.hideDialog();
       this.renderShopItems();
       this.shopEl.classList.remove('hidden');
     } else {
       this.shopEl.classList.add('hidden');
+    }
+  }
+
+  toggleSave(show) {
+    this.saveOpen = show !== undefined ? show : !this.saveOpen;
+    if (this.saveOpen) {
+      this.inventoryOpen = false;
+      this.shopOpen = false;
+      this.invEl.classList.add('hidden');
+      this.shopEl.classList.add('hidden');
+      this.hideDialog();
+      this.renderSaveSlots();
+      this.saveEl.classList.remove('hidden');
+    } else {
+      this.saveEl.classList.add('hidden');
     }
   }
 
@@ -169,7 +210,7 @@ export class UI {
       const row = document.createElement('div');
       row.className = 'item-row';
       const isEquipped = (p.weapon && p.weapon.id === item.id) || (p.armor && p.armor.id === item.id);
-      
+
       row.innerHTML = `
         <div class="item-name">${item.name} ${isEquipped ? '<span class="equipped-tag">[Equipped]</span>' : ''}</div>
         <div class="item-desc">${item.desc || ''}</div>
@@ -237,6 +278,54 @@ export class UI {
         }
       });
       listEl.appendChild(row);
+    });
+  }
+
+  renderSaveSlots() {
+    const listEl = document.getElementById('save-slots-list');
+    listEl.innerHTML = '';
+
+    const slots = SaveManager.getSlots();
+    slots.forEach((s) => {
+      const card = document.createElement('div');
+      card.className = 'save-card';
+
+      if (s.empty) {
+        card.innerHTML = `
+          <div class="save-title">Slot ${s.slot}: Empty</div>
+          <div class="save-actions">
+            <button class="action-btn save-btn">Save</button>
+          </div>
+        `;
+        card.querySelector('.save-btn').addEventListener('click', () => {
+          SaveManager.save(s.slot, this.game);
+          this.renderSaveSlots();
+        });
+      } else {
+        const d = s.data;
+        card.innerHTML = `
+          <div class="save-title">Slot ${s.slot}: LV ${d.level} (Screen ${d.screenIndex})</div>
+          <div class="save-meta">HP: ${d.hp}/${d.hpMax} | Gold: ${d.gold} | Saved: ${d.timestamp}</div>
+          <div class="save-actions">
+            <button class="action-btn save-btn">Overwrite</button>
+            <button class="action-btn load-btn">Load</button>
+            <button class="action-btn del-btn">Delete</button>
+          </div>
+        `;
+        card.querySelector('.save-btn').addEventListener('click', () => {
+          SaveManager.save(s.slot, this.game);
+          this.renderSaveSlots();
+        });
+        card.querySelector('.load-btn').addEventListener('click', () => {
+          this.game.loadGameData(d);
+          this.toggleSave(false);
+        });
+        card.querySelector('.del-btn').addEventListener('click', () => {
+          SaveManager.deleteSlot(s.slot);
+          this.renderSaveSlots();
+        });
+      }
+      listEl.appendChild(card);
     });
   }
 }

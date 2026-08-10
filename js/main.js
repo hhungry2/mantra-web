@@ -1,8 +1,8 @@
 // Boot and game loop.
 //
-// Phase 3: RPG Systems & Progression
-// Integrates XP/Level progression, Inventory & Equipment tabbed UI,
-// NPC/Signboard dialogue overlays, Shop transactions, and Key item handling.
+// Phase 4: Full Game Release & Polish
+// Integrates 64x64 Bosses & AI, Title/Story/Win/Lose screens,
+// 4-slot localStorage Save & Load, Touch virtual pad, & final polish.
 
 import {
   TILE, FRAME_MS, MAX_CATCHUP_FRAMES, START_SCREEN, START_TILE, VIEW_W, VIEW_H,
@@ -13,9 +13,12 @@ import { Renderer } from './renderer.js';
 import { Input } from './input.js';
 import { Saric } from './saric.js';
 import { spawnScreen, makeMover, EnemyProjectile } from './enemy.js';
+import { Boss } from './boss.js';
 import { overlaps } from './collision.js';
 import { Audio } from './audio.js';
 import { UI } from './ui.js';
+import { ITEMS } from './items.js';
+import { TouchControls } from './touch.js';
 
 class Game {
   constructor(assets, canvas) {
@@ -25,8 +28,8 @@ class Game {
     this.textMsgs = assets.textMsgs || [];
     this.input = new Input();
     this.audio = new Audio();
+    this.touch = new TouchControls(this.input);
 
-    // Defeated enemies bitmask for all 256 screens
     this.defeatedMasks = new Uint16Array(256);
 
     this.player = new Saric(
@@ -38,6 +41,7 @@ class Game {
 
     this.screenIndex = START_SCREEN;
     this.projectiles = [];
+    this.victory = false;
     this.enter(START_SCREEN);
 
     this.frame = 0;
@@ -51,6 +55,7 @@ class Game {
 
     this.input.on('KeyI', () => this.ui.toggleInventory());
     this.input.on('Tab', () => this.ui.toggleInventory());
+    this.input.on('KeyV', () => this.ui.toggleSave());
 
     this.input.on('Space', () => {
       if (this.ui.dialogActive) {
@@ -69,11 +74,48 @@ class Game {
     this.screenIndex = index;
     this.screen = this.world.screen(index);
     this.enemies = spawnScreen(this.screen, this.templates, this.defeatedMasks[index]);
+
+    // Spawn Boss on specific boss screens (e.g. Screen 255, 100, 200)
+    if (index === 255 && !(this.defeatedMasks[index] & 1)) {
+      this.enemies.push(new Boss(7, 8, 4)); // Final Boss Zarin
+    } else if (index % 32 === 0 && index !== 0 && !(this.defeatedMasks[index] & 1)) {
+      const bossType = (index / 32) % 8;
+      this.enemies.push(new Boss(bossType, 8, 4));
+    }
+
     this.projectiles = [];
     this.move = makeMover(this.world, this.screen);
 
     if (spawnX !== null && this.player) this.player.x = spawnX;
     if (spawnY !== null && this.player) this.player.y = spawnY;
+  }
+
+  loadGameData(d) {
+    this.player.level = d.level;
+    this.player.hp = d.hp;
+    this.player.hpMax = d.hpMax;
+    this.player.stamina = d.stamina;
+    this.player.xp = d.xp;
+    this.player.nextXp = d.nextXp;
+    this.player.gold = d.gold;
+    this.player.baseAttack = d.baseAttack;
+    this.player.baseDefense = d.baseDefense;
+    this.player.dead = false;
+
+    if (d.weaponId && ITEMS[d.weaponId]) this.player.weapon = ITEMS[d.weaponId];
+    if (d.armorId && ITEMS[d.armorId]) this.player.armor = ITEMS[d.armorId];
+
+    if (d.inventoryIds) {
+      this.player.inventory = d.inventoryIds.map((id) => ITEMS[id]).filter(Boolean);
+    }
+
+    if (d.defeatedMasks) {
+      this.defeatedMasks = new Uint16Array(d.defeatedMasks);
+    }
+
+    this.enter(d.screenIndex || START_SCREEN, d.playerPos ? d.playerPos.x : 256, d.playerPos ? d.playerPos.y : 160);
+    this.hudNote = 'GAME LOADED!';
+    this.noteUntil = this.frame + 60;
   }
 
   checkInteract() {
@@ -93,7 +135,7 @@ class Game {
       const msgIdx = (this.screenIndex + tx + ty) % this.textMsgs.length;
       const msg = this.textMsgs[msgIdx];
       if (msg) {
-        this.ui.showDialog(`Screen ${this.screenIndex} Notice`, msg);
+        this.ui.showDialog(`Notice`, msg);
       }
     }
   }
@@ -131,8 +173,7 @@ class Game {
   tick() {
     this.frame++;
 
-    // Pause physics if modal or dialog is open
-    if (this.ui.inventoryOpen || this.ui.shopOpen || this.ui.dialogActive) return;
+    if (this.ui.inventoryOpen || this.ui.shopOpen || this.ui.saveOpen || this.ui.dialogActive) return;
 
     const player = this.player;
     player.update(this.input, this.world, this.screen);
@@ -153,7 +194,7 @@ class Game {
     };
     const sword = player.swordBox;
 
-    // Update Enemies
+    // Update Enemies & Bosses
     for (const enemy of this.enemies) {
       if (enemy.dead) continue;
       enemy.update(ctx);
@@ -162,10 +203,14 @@ class Game {
         const killed = enemy.hurt(player.attack, player.x, player.y);
         this.audio.play(killed ? 'kill' : 'hit');
         if (killed) {
-          // Record defeated enemy
-          this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
-          player.gold += 5;
-          const xpReward = Math.max(5, enemy.hp * 2);
+          if (enemy.slotIndex !== undefined) {
+            this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
+          } else if (enemy.isBoss) {
+            this.defeatedMasks[this.screenIndex] |= 1;
+            if (enemy.bossId === 7) this.victory = true;
+          }
+          player.gold += enemy.isBoss ? 200 : 5;
+          const xpReward = enemy.isBoss ? 150 : Math.max(5, enemy.hp * 2);
           const leveledUp = player.addXp(xpReward);
           if (leveledUp) {
             this.audio.play('kill');
@@ -212,7 +257,9 @@ class Game {
     r.drawHud(this.player, note);
 
     if (this.player.dead) {
-      r.drawBanner(['YOU DIED', 'reload to try again']);
+      r.drawBanner(['GAME OVER', 'Press V to Load Game or Reload page']);
+    } else if (this.victory) {
+      r.drawBanner(['VICTORY!', 'You have slain Zarin and saved the realm!']);
     }
   }
 }
@@ -234,7 +281,6 @@ async function boot() {
     return;
   }
 
-  // Load text.json messages
   try {
     const res = await fetch('assets/data/text.json');
     if (res.ok) assets.textMsgs = await res.json();
@@ -245,7 +291,7 @@ async function boot() {
   const game = new Game(assets, canvas);
   window.mantra = game; // debug handle
   game.draw();
-  message.textContent = 'Phase 3: Complete RPG Systems (Inventory, Equipment, XP/Level Up, Dialogue, Shops).';
+  message.textContent = 'Mantra Web Port (Full Release: 256 Screens, RPG Systems, Bosses, Saves, & Touch Controls)';
   button.disabled = false;
 
   button.addEventListener('click', async () => {

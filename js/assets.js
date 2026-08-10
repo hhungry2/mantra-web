@@ -1,6 +1,4 @@
-// Loads the PNG atlases and JSON the extraction tools produced, and turns the
-// collision atlas into a flat lookup table so the engine never touches pixels
-// through a canvas at runtime.
+// Loads the PNG atlases and JSON data files.
 
 const BASE = 'assets/';
 
@@ -19,7 +17,6 @@ async function loadJSON(src) {
   return res.json();
 }
 
-// tile_masks.png is opaque white wherever a pixel blocks movement.
 function readMask(img) {
   const canvas = document.createElement('canvas');
   canvas.width = img.width;
@@ -33,10 +30,11 @@ function readMask(img) {
 }
 
 export async function loadAssets() {
-  const [tiles, maskImage, sprites, map, gfx, enemies] = await Promise.all([
+  const [tiles, maskImage, sprites, bosses, map, gfx, enemies] = await Promise.all([
     loadImage(BASE + 'tiles.png'),
     loadImage(BASE + 'tile_masks.png'),
     loadImage(BASE + 'sprites.png'),
+    loadImage(BASE + 'bosses.png'),
     loadJSON(BASE + 'data/map.json'),
     loadJSON(BASE + 'data/gfx.json'),
     loadJSON(BASE + 'data/enemies.json'),
@@ -46,7 +44,7 @@ export async function loadAssets() {
   const spriteIndex = new Map(gfx.sprites.ids.map((id, i) => [id, i]));
 
   return {
-    tiles, sprites, map, gfx,
+    tiles, sprites, bosses, map, gfx,
     templates: enemies.templates,
     mask: readMask(maskImage),
     tileIndex, spriteIndex,

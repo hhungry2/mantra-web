@@ -1,11 +1,11 @@
-// All canvas drawing: terrain, then entities back-to-front, then the status bar.
+// All canvas drawing: terrain, then entities back-to-front, bosses, then status bar.
 
 import {
   TILE, SCREEN_COLS, SCREEN_ROWS, VIEW_W, VIEW_H, HUD_H,
 } from './config.js';
 
 const SPRITE = 32;
-const SPRITE_OFFSET_Y = -22;   // sprite top relative to the body centre
+const SPRITE_OFFSET_Y = -22;
 
 export class Renderer {
   constructor(canvas, assets) {
@@ -13,6 +13,7 @@ export class Renderer {
     this.ctx.imageSmoothingEnabled = false;
     this.tiles = assets.tiles;
     this.sprites = assets.sprites;
+    this.bosses = assets.bosses;
     this.tileIndex = assets.tileIndex;
     this.spriteIndex = assets.spriteIndex;
     this.tileCols = assets.gfx.tiles.cols;
@@ -39,6 +40,17 @@ export class Renderer {
     );
   }
 
+  drawBossSprite(frameIndex, x, y) {
+    if (!this.bosses) return;
+    const col = frameIndex % 8;
+    const row = Math.floor(frameIndex / 8);
+    this.ctx.drawImage(
+      this.bosses,
+      col * 64, row * 64, 64, 64,
+      Math.round(x - 32), Math.round(y - 32), 64, 64,
+    );
+  }
+
   drawScreen(screen) {
     for (let ty = 0; ty < SCREEN_ROWS; ty++) {
       for (let tx = 0; tx < SCREEN_COLS; tx++) {
@@ -51,10 +63,13 @@ export class Renderer {
     const drawables = [];
     for (const e of enemies) {
       if (e.dead) continue;
-      // A struck enemy blinks rather than tinting: the artwork is paletted and
-      // a tint would need an offscreen pass every frame.
       if (e.flash > 0 && e.flash % 2 === 1) continue;
-      drawables.push({ y: e.y, draw: () => this.drawSprite(e.sprite, e.x - SPRITE / 2, e.y + SPRITE_OFFSET_Y) });
+
+      if (e.isBoss) {
+        drawables.push({ y: e.y, draw: () => this.drawBossSprite(e.currentFrame, e.x, e.y) });
+      } else {
+        drawables.push({ y: e.y, draw: () => this.drawSprite(e.sprite, e.x - SPRITE / 2, e.y + SPRITE_OFFSET_Y) });
+      }
     }
 
     if (!player.dead && !(player.invuln > 0 && player.invuln % 4 < 2)) {
@@ -63,8 +78,6 @@ export class Renderer {
         y: player.y,
         draw: () => {
           this.drawSprite(frames.body, player.x - SPRITE / 2, player.y + SPRITE_OFFSET_Y);
-          // The blade art is already placed inside its own 32x32 cell so that it
-          // reaches out of Saric's hand, so it shares his origin exactly.
           if (frames.sword !== null) {
             this.drawSprite(frames.sword, player.x - SPRITE / 2, player.y + SPRITE_OFFSET_Y);
           }
