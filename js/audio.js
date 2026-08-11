@@ -1,6 +1,8 @@
 // Sound effects and background music.
 
-import { parseMod, ModPlayer } from './mod.js';
+// Replay is js/vendor/js-mod-player, patched there for the two 6-channel
+// tracks. The engine this used to carry is kept at old/mod.js.
+import { ModPlayer } from './vendor/js-mod-player/player.js';
 
 // Nothing in the data files records which effect is which sound, so these
 // names are read off their lengths: the short ones are blows, the long ones
@@ -31,6 +33,8 @@ export class Audio {
     this.buffers = new Map();
     this.player = null;
     this.currentTrack = -1;
+    this.loadingTrack = -1;
+    this.musicRequest = 0;
   }
 
   start() {
@@ -78,19 +82,32 @@ export class Audio {
   }
 
   async playMusic(index) {
-    if (!this.ctx || index === this.currentTrack) return;
-    const res = await fetch(MUSIC_FILES[index]);
-    if (!res.ok) return;
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    this.currentTrack = index;
-    this.mod = parseMod(bytes);
-    if (this.enabled) this.player.play(this.mod);
+    if (!this.ctx || index === this.currentTrack || index === this.loadingTrack) return;
+    if (!Number.isInteger(index) || index < 0 || index >= MUSIC_FILES.length) return;
+
+    this.loadingTrack = index;
+    const request = ++this.musicRequest;
+    try {
+      const res = await fetch(MUSIC_FILES[index]);
+      if (!res.ok || request !== this.musicRequest) return;
+      const bytes = await res.arrayBuffer();
+      if (request !== this.musicRequest) return;
+      await this.player.loadBuffer(bytes);
+      if (request !== this.musicRequest) return;
+      this.currentTrack = index;
+      // The worklet's soft clip packs the mix ~2dB denser than the node graph
+      // this used to run, so trim it back to the level the game had before.
+      this.player.setVolume(0.8);
+      if (this.enabled) this.player.play();
+    } finally {
+      if (this.loadingTrack === index) this.loadingTrack = -1;
+    }
   }
 
   toggle() {
     this.enabled = !this.enabled;
     if (!this.enabled) this.player?.stop();
-    else if (this.mod) this.player.play(this.mod);
+    else if (this.currentTrack >= 0) this.player.resume();
     return this.enabled;
   }
 }

@@ -117,9 +117,10 @@ export class ModPlayer {
     });
     this.chan = [];
     // Channels each run near full scale, so the bus needs headroom to sum them.
+    // Scaling by the count keeps the peak sum equal for 4- and 6-channel mods.
     if (this.mixBus) this.mixBus.disconnect();
     this.mixBus = this.ctx.createGain();
-    this.mixBus.gain.value = 1 / Math.sqrt(mod.channels);
+    this.mixBus.gain.value = 2 / mod.channels;
     this.mixBus.connect(this.destination);
     for (let c = 0; c < mod.channels; c++) {
       const gain = this.ctx.createGain();
