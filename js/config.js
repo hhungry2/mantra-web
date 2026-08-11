@@ -18,12 +18,11 @@ export const WORLD_COLS = 16;
 export const WORLD_ROWS = 16;
 export const TOTAL_SCREENS = WORLD_COLS * WORLD_ROWS; // 256
 
-// Screen 61 (world grid 13,3) sits in the largest region you can cross on foot:
-// 47 built screens across the north-east overworld. Screen 17, the phase 1
-// slice, turned out to be a walled compound of four screens whose only ways out
-// are cave mouths, and those need the warp targets decoded first.
-export const START_SCREEN = 61;
-export const START_TILE = { x: 13, y: 5 };
+// The original newGame() starts at world grid (12,7), screen 124. Saric's
+// original top-left pixel was (256,160), which is the centre of tile (8,5) in
+// this engine's centre-position coordinate system.
+export const START_SCREEN = 124;
+export const START_TILE = { x: 8, y: 5 };
 
 // Sprite ids inside sprites.png. Saric is four poses x [left, right, down, up].
 export const SARIC_WALK_A = 1000;
@@ -36,4 +35,3 @@ export const DIR_LEFT = 0;
 export const DIR_RIGHT = 1;
 export const DIR_DOWN = 2;
 export const DIR_UP = 3;
-

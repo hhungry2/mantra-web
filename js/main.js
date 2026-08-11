@@ -126,7 +126,9 @@ class Game {
     }
 
     const position = d.playerPos || {};
-    this.enter(d.screenIndex ?? START_SCREEN, position.x ?? 256, position.y ?? 160);
+    const startX = START_TILE.x * TILE + TILE / 2;
+    const startY = START_TILE.y * TILE + TILE / 2;
+    this.enter(d.screenIndex ?? START_SCREEN, position.x ?? startX, position.y ?? startY);
     this.hudNote = 'GAME LOADED!';
     this.noteUntil = this.frame + 60;
   }
