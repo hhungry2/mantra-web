@@ -1,7 +1,7 @@
 // The item roster, straight out of ItemData.
 //
-// Every item carries an attribute flag byte, which is what the original used to
-// decide how it behaves. Items are keyed by their code (the icon id minus
+// Every item carries the original `attributes` bit field, which is what the
+// original used to decide how it behaves. Items are keyed by their code (the icon id minus
 // 16000), the same number StoreData uses to name its stock.
 
 export const FLAG = {
@@ -26,10 +26,11 @@ export const ITEM_TYPES = {
 // Which inventory tab an item lands in. Rings sit with armour because that is
 // what they do here: "Provides Magical Protection".
 function typeOf(item) {
-  if (item.flags & (FLAG.WEAPON | FLAG.MAGIC)) return ITEM_TYPES.WEAPON;
-  if (item.flags & (FLAG.ARMOR | FLAG.RING)) return ITEM_TYPES.ARMOR;
-  if (item.flags & FLAG.MONEY) return ITEM_TYPES.MONEY;
-  if (item.flags & FLAG.MESSAGE) return ITEM_TYPES.MESSAGE;
+  const attributes = item.attributes || 0;
+  if (attributes & (FLAG.WEAPON | FLAG.MAGIC)) return ITEM_TYPES.WEAPON;
+  if (attributes & (FLAG.ARMOR | FLAG.RING)) return ITEM_TYPES.ARMOR;
+  if (attributes & FLAG.MONEY) return ITEM_TYPES.MONEY;
+  if (attributes & FLAG.MESSAGE) return ITEM_TYPES.MESSAGE;
   if (item.heal > 0 || item.stamina < 0) return ITEM_TYPES.CONSUMABLE;
   return ITEM_TYPES.MISC;
 }

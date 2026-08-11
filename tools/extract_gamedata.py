@@ -197,6 +197,7 @@ def extract_map(gamedata):
             enemy = read_enemy(rec)
             if enemy['sprite'] < 2000 or enemy['sprite'] > 2999:
                 continue
+            enemy['slot'] = e
             enemies.append(enemy)
 
         screens.append({

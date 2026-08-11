@@ -6,7 +6,7 @@
 
 import { TILE } from './config.js';
 import { box } from './collision.js';
-import { run, isBoss } from './enemy_ai.js';
+import { run } from './enemy_ai.js';
 
 // Enemy attribute bits, from GameTypes.h.
 export const ATTR = {
@@ -25,7 +25,7 @@ export const ATTR = {
 
 const BODY_W = 20;
 const BODY_H = 16;
-const BOSS_BODY = 30;
+const BOSS_BODY = 64;
 const HIT_FLASH = 6;
 const KNOCK_FRAMES = 5;
 
@@ -35,10 +35,6 @@ const SPEED_SCALE = 0.7;
 export class Enemy {
   constructor(record, slotIndex) {
     this.slotIndex = slotIndex;
-    this.x = record.c * TILE + TILE / 2;
-    this.y = record.r * TILE + TILE / 2;
-    this.spawnX = this.x;
-    this.spawnY = this.y;
     this.sprite = record.sprite;
     this.hp = Math.max(1, record.hp);
     this.armor = record.armor;
@@ -53,12 +49,16 @@ export class Enemy {
     this.drop = record.drop;
     this.message = record.message;
     this.attributes = record.attributes;
-    this.boss = isBoss(record.ai);
+    this.boss = !!(this.attributes & ATTR.IS_BOSS);
     this.killable = !!(record.attributes & ATTR.KILLABLE);
     this.solid = !(record.attributes & ATTR.INSUBSTANTIAL);
     this.holdable = !!(record.attributes & ATTR.CAN_BE_HELD);
     this.multiFacing = !!(record.attributes & ATTR.IS_MULTI_FACING);
-    this.facing = record.facing > 0 ? record.facing : 1;
+    this.facing = Number.isFinite(record.facing) ? record.facing : 0;
+    this.x = record.c * TILE + (this.boss ? TILE : TILE / 2);
+    this.y = record.r * TILE + (this.boss ? TILE : TILE / 2);
+    this.spawnX = this.x;
+    this.spawnY = this.y;
     this.legCounter = 0;
     this.legState = 0;
 
@@ -78,12 +78,23 @@ export class Enemy {
     return box(this.x, this.y, size, this.boss ? BOSS_BODY : BODY_H);
   }
 
-  // Sprite = spriteRef + legState, and a creature drawn from four sides adds
-  // two frames per facing. That is the arithmetic in drawEnemiesWithBitmap().
+  // The original stores two frames per facing after the spriteRef. BossData
+  // uses the same offset, but starts at frame zero instead of sprite id 2000.
+  get frameOffset() {
+    let offset = this.legState;
+    if (this.multiFacing) {
+      offset += (this.facing - 1) * 2;
+      if (this.facing === 0) offset += 2;
+    }
+    return offset;
+  }
+
   get frame() {
-    let sprite = this.sprite + this.legState;
-    if (this.multiFacing) sprite += (this.facing - 1) * 2;
-    return sprite;
+    return this.sprite + this.frameOffset;
+  }
+
+  get currentFrame() {
+    return this.sprite - 2000 + this.frameOffset;
   }
 
   hurt(amount, fromX, fromY) {
@@ -117,10 +128,10 @@ export class Enemy {
     this.face(this.x - wasX, this.y - wasY);
   }
 
-  // Facings are 1 left, 2 down, 3 right, 4 up, two frames apiece.
+  // Facings are 1 right, 2 down, 3 left, 4 up; zero is neutral.
   face(dx, dy) {
     if (!dx && !dy) return;
-    if (Math.abs(dx) >= Math.abs(dy)) this.facing = dx < 0 ? 1 : 3;
+    if (Math.abs(dx) >= Math.abs(dy)) this.facing = dx > 0 ? 1 : 3;
     else this.facing = dy > 0 ? 2 : 4;
   }
 }
@@ -155,8 +166,9 @@ export function spawnScreen(screen, defeatedMask = 0) {
   const enemies = [];
   if (!screen || !screen.enemies) return enemies;
   screen.enemies.forEach((record, index) => {
-    if (defeatedMask & (1 << index)) return;
-    enemies.push(new Enemy(record, index));
+    const slotIndex = record.slot ?? index;
+    if (defeatedMask & (1 << slotIndex)) return;
+    enemies.push(new Enemy(record, slotIndex));
   });
   return enemies;
 }

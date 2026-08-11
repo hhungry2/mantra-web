@@ -67,7 +67,7 @@ export class Renderer {
       if (e.dead) continue;
       if (e.flash > 0 && e.flash % 2 === 1) continue;
 
-      if (e.isBoss) {
+      if (e.boss) {
         drawables.push({ y: e.y, draw: () => this.drawBossSprite(e.currentFrame, e.x, e.y) });
       } else {
         drawables.push({ y: e.y, draw: () => this.drawSprite(e.frame, e.x - SPRITE / 2, e.y + SPRITE_OFFSET_Y) });

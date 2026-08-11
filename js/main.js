@@ -114,8 +114,8 @@ class Game {
     this.player.baseAttack = d.baseAttack;
     this.player.baseDefense = d.baseDefense;
 
-    if (d.weaponCode) this.player.weapon = getItem(d.weaponCode) || this.player.weapon;
-    if (d.armorCode) this.player.armor = getItem(d.armorCode);
+    this.player.weapon = d.weaponCode ? getItem(d.weaponCode) : null;
+    this.player.armor = d.armorCode ? getItem(d.armorCode) : null;
 
     if (d.inventoryCodes) {
       this.player.inventory = d.inventoryCodes.map((code) => getItem(code)).filter(Boolean);
@@ -125,7 +125,8 @@ class Game {
       this.defeatedMasks = new Uint16Array(d.defeatedMasks);
     }
 
-    this.enter(d.screenIndex || START_SCREEN, d.playerPos ? d.playerPos.x : 256, d.playerPos ? d.playerPos.y : 160);
+    const position = d.playerPos || {};
+    this.enter(d.screenIndex ?? START_SCREEN, position.x ?? 256, position.y ?? 160);
     this.hudNote = 'GAME LOADED!';
     this.noteUntil = this.frame + 60;
   }

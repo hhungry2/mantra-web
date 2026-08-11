@@ -66,12 +66,12 @@ export class Saric {
   }
 
   get attack() {
-    const wBonus = this.weapon ? (this.weapon.attack || 0) : 0;
+    const wBonus = this.weapon ? (this.weapon.damage || 0) : 0;
     return this.baseAttack + wBonus;
   }
 
   get defense() {
-    const aBonus = this.armor ? (this.armor.defense || 0) : 0;
+    const aBonus = this.armor ? (this.armor.armor || 0) : 0;
     return this.baseDefense + aBonus;
   }
 
@@ -122,7 +122,7 @@ export class Saric {
 
   // Money is never carried: picking a coin up banks its face value.
   addItem(item) {
-    if (item.flags & FLAG.MONEY) this.gold += item.value;
+    if (item.attributes & FLAG.MONEY) this.gold += item.quantity;
     else this.inventory.push(item);
   }
 
