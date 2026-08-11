@@ -87,11 +87,23 @@ export class World {
     return false;
   }
 
-  // Standing on a damage tile hurts, which is how the game fences off water.
-  damageAt(screen, px, py) {
-    if (px < 0 || py < 0 || px >= VIEW_W || py >= VIEW_H) return 0;
-    const mod = this.modifierAt(screen, px >> 5, py >> 5);
-    return (mod & MOD.DOES_DAMAGE) ? this.specialAt(screen, px >> 5, py >> 5) : 0;
+  // The original checks every tile Saric overlaps. `special` is signed: a
+  // negative value heals, while a positive value damages. The original loop
+  // only visits the first eight map rows, including that quirk here.
+  terrainEffectAt(screen, body) {
+    const left = Math.max(0, Math.floor(body.x / TILE));
+    const right = Math.min(SCREEN_COLS - 1, Math.floor((body.x + body.w - 1) / TILE));
+    const top = Math.max(0, Math.floor(body.y / TILE));
+    const bottom = Math.min(7, Math.floor((body.y + body.h - 1) / TILE));
+    for (let ty = top; ty <= bottom; ty++) {
+      for (let tx = left; tx <= right; tx++) {
+        const mod = this.modifierAt(screen, tx, ty);
+        if ((mod & MOD.DOES_DAMAGE) && !(mod & MOD.IS_DOOR)) {
+          return this.specialAt(screen, tx, ty);
+        }
+      }
+    }
+    return null;
   }
 
   getNeighbor(screenIndex, dir) {
