@@ -50,6 +50,7 @@ class Game {
     this.screenIndex = START_SCREEN;
     this.projectiles = [];
     this.victory = false;
+    this.doorLatch = null;
     this.enter(START_SCREEN);
 
     this.frame = 0;
@@ -85,6 +86,7 @@ class Game {
   }
 
   enter(index, spawnX = null, spawnY = null) {
+    this.doorLatch = null;
     this.screenIndex = index;
     this.screen = this.world.screen(index);
     // Bosses need no special casing: they sit in the screen's own enemy slots
@@ -92,6 +94,8 @@ class Game {
     this.enemies = spawnScreen(this.screen, this.defeatedMasks[index]);
     this.projectiles = [];
     this.move = makeMover(this.world, this.screen);
+
+    if (this.audio.ctx) this.audio.playMusic(this.world.musicIndexAt(this.screen));
 
     if (spawnX !== null && this.player) this.player.x = spawnX;
     if (spawnY !== null && this.player) this.player.y = spawnY;
@@ -214,10 +218,25 @@ class Game {
     const player = this.player;
     const currIdx = this.screenIndex;
 
+    const playerTileX = Math.floor(player.x / TILE);
+    const playerTileY = Math.floor(player.y / TILE);
+    if (this.doorLatch) {
+      const stillOnDoor = this.doorLatch.screen === currIdx
+        && this.doorLatch.tileX === playerTileX
+        && this.doorLatch.tileY === playerTileY;
+      if (stillOnDoor) return;
+      this.doorLatch = null;
+    }
+
     const door = this.world.doorAt(this.screen, player.x, player.y);
     if (door && door.screen !== this.screenIndex) {
       this.audio.play('door');
       this.enter(door.screen, door.tileX * TILE + TILE / 2, door.tileY * TILE + TILE / 2);
+      this.doorLatch = {
+        screen: door.screen,
+        tileX: door.tileX,
+        tileY: door.tileY,
+      };
       return;
     }
 
@@ -372,7 +391,7 @@ async function boot() {
     overlay.classList.add('hidden');
     story.classList.remove('hidden');
     await game.audio.start();
-    game.audio.playMusic(0);
+    game.audio.playMusic(game.world.musicIndexAt(game.screen));
   });
 
   storyButton.addEventListener('click', () => {

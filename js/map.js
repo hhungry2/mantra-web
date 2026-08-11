@@ -46,6 +46,14 @@ export class World {
     return special === undefined ? 0 : special;
   }
 
+  // MapArea stores the original music number in the high byte of `area`.
+  // The C player numbers songs 1..9 while the web player indexes 0..8.
+  musicIndexAt(screen) {
+    const area = Number(screen && screen.area);
+    if (!Number.isFinite(area)) return 0;
+    return Math.max(0, Math.min(8, ((area & 0xffff) >>> 8) - 1));
+  }
+
   // Off the screen counts as solid only at the rim of the world; everywhere
   // else it is the hand-off to the next screen.
   isSolidPixel(screen, px, py) {
@@ -109,8 +117,12 @@ export class World {
     if (!(mod & MOD.IS_DOOR)) return null;
 
     if (mod & MOD.LEADS_TO_UNDERWORLD) {
-      const target = screen.index + UNDERWORLD_OFFSET;
-      if (target >= this.screens.length) return null;
+      // The original toggles between the overworld and the underworld; it
+      // does not only descend. Bottom-half doors therefore subtract 128.
+      const target = screen.index < UNDERWORLD_OFFSET
+        ? screen.index + UNDERWORLD_OFFSET
+        : screen.index - UNDERWORLD_OFFSET;
+      if (target < 0 || target >= this.screens.length) return null;
       return { screen: target, tileX: tx, tileY: ty };
     }
 
