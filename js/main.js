@@ -276,11 +276,14 @@ class Game {
     // positive values are hazards. The original applies one effect every 30
     // frames while Saric overlaps a qualifying tile.
     const terrainEffect = this.world.terrainEffectAt(this.screen, player.body);
+    player.terrainCooldown = Math.max(0, (player.terrainCooldown || 0) - 1);
     if (terrainEffect !== null && player.terrainCooldown === 0) {
       player.terrainCooldown = 30;
       if (terrainEffect < 0) {
-        player.recover(-terrainEffect);
-      } else if (player.terrainHurt(terrainEffect)) {
+        player.hp = Math.min(player.hpMax, player.hp - terrainEffect);
+      } else if (terrainEffect > 0) {
+        player.hp = Math.max(0, player.hp - terrainEffect);
+        if (player.hp === 0) player.dead = true;
         this.audio.play(player.dead ? 'die' : 'hurt');
       }
     }
