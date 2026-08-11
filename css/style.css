@@ -194,6 +194,20 @@ canvas#game-canvas {
 }
 
 /* Dialogue Box */
+#dialog-overlay.ui-overlay {
+  background: transparent;
+  backdrop-filter: none;
+  pointer-events: none;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+#dialog-overlay .dialog-box {
+  pointer-events: auto;
+  top: 16px;
+  bottom: auto;
+}
+
 .dialog-box {
   position: absolute;
   bottom: 40px;
