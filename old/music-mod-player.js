@@ -1,7 +1,9 @@
-// Retired: the from-scratch ProTracker replay engine that music/index.html
-// used to run inline, kept for reference now that the page plays through
-// js/vendor/js-mod-player. Not loaded by anything. See old/mod.js for the
-// game-side copy of the same engine.
+// The from-scratch ProTracker replay engine music/index.html used to run
+// inline, before its tick/row/effect logic was ported into an AudioWorklet -
+// see js/mod/worklet.js. Still loaded: the archive page's ENGINE switch plays
+// through it as the "Node" option, alongside that port and js/vendor/js-mod-
+// player, so the three can be compared on the same bar of the same song. See
+// old/mod.js for the game-side copy (the game plays through js/mod/ only).
 
   const AMIGA_CLOCK = 7093789.2;
 

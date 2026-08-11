@@ -1,8 +1,9 @@
 // Sound effects and background music.
 
-// Replay is js/vendor/js-mod-player, patched there for the two 6-channel
-// tracks. The engine this used to carry is kept at old/mod.js.
-import { ModPlayer } from './vendor/js-mod-player/player.js';
+// Replay mixes sample-by-sample inside an AudioWorklet - see js/mod/. The
+// AudioBufferSourceNode-per-note engine this used to carry is kept at
+// old/mod.js.
+import { ModPlayer } from './mod/player.js';
 
 // Nothing in the data files records which effect is which sound, so these
 // names are read off their lengths: the short ones are blows, the long ones
@@ -95,9 +96,10 @@ export class Audio {
       await this.player.loadBuffer(bytes);
       if (request !== this.musicRequest) return;
       this.currentTrack = index;
-      // The worklet's soft clip packs the mix ~2dB denser than the node graph
-      // this used to run, so trim it back to the level the game had before.
-      this.player.setVolume(0.8);
+      // The worklet's per-sample tanh packs the mix ~1.85dB denser than the
+      // AudioBufferSourceNode graph this used to run, measured across all
+      // nine tracks; trim it back to the level the game had before.
+      this.player.setVolume(0.82);
       if (this.enabled) this.player.play();
     } finally {
       if (this.loadingTrack === index) this.loadingTrack = -1;
