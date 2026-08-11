@@ -395,6 +395,7 @@ async function boot() {
   const overlay = document.getElementById('overlay-screen');
   const message = document.getElementById('overlay-msg');
   const button = document.getElementById('start-btn');
+  const openButton = document.getElementById('open-btn');
 
   message.textContent = 'Loading assets...';
   button.disabled = true;
@@ -417,17 +418,30 @@ async function boot() {
 
   const story = document.getElementById('story-screen');
   const storyButton = document.getElementById('story-btn');
+  let gameStarted = false;
+
+  const startGame = async () => {
+    if (gameStarted) return;
+    gameStarted = true;
+    await game.audio.start();
+    await game.audio.playMusic(game.world.musicIndexAt(game.screen));
+    run(game);
+  };
+  game.startGame = startGame;
 
   button.addEventListener('click', () => {
     overlay.classList.add('hidden');
     story.classList.remove('hidden');
   });
 
+  openButton.addEventListener('click', () => {
+    overlay.classList.add('hidden');
+    game.ui.toggleSave(true);
+  });
+
   storyButton.addEventListener('click', async () => {
     story.classList.add('hidden');
-    await game.audio.start();
-    await game.audio.playMusic(game.world.musicIndexAt(game.screen));
-    run(game);
+    await startGame();
   });
 }
 

@@ -87,7 +87,7 @@ canvas#game-canvas {
   align-items: center;
   justify-content: center;
   gap: 0;
-  background: #000;
+  background: #000 !important;
   color: #111;
 }
 
@@ -100,7 +100,8 @@ canvas#game-canvas {
 
 .title-menu {
   display: flex;
-  flex-direction: column;
+  flex-direction: column !important;
+  align-items: stretch;
   gap: 14px;
   width: min(230px, 70%);
 }

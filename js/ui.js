@@ -421,6 +421,7 @@ export class UI {
         card.querySelector('.load-btn').addEventListener('click', () => {
           this.game.loadGameData(d);
           this.toggleSave(false);
+          this.game.startGame?.();
         });
         card.querySelector('.del-btn').addEventListener('click', () => {
           SaveManager.deleteSlot(s.slot);
