@@ -195,7 +195,9 @@ export class Saric {
       if (dx < 0) this.dir = DIR_LEFT;
       else if (dx > 0) this.dir = DIR_RIGHT;
 
-      const speed = this.running ? RUN_SPEED : WALK_SPEED;
+      const speed = this.debugMode
+        ? WALK_SPEED * (this.running ? 3 : 2)
+        : (this.running ? RUN_SPEED : WALK_SPEED);
       const len = Math.hypot(dx, dy) || 1;
       this.step(world, screen, (dx / len) * speed, (dy / len) * speed);
       this.walkTimer++;

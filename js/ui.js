@@ -2,6 +2,7 @@
 
 import { ITEM_TYPES, getItem } from './items.js';
 import { SaveManager } from './save.js';
+import { t } from './i18n.js';
 
 // Items carry no price of their own - StoreData only prices what a shop
 // sells. To let the player sell anything, price it off whichever shop (if
@@ -67,9 +68,9 @@ export class UI {
     this.dialogEl.className = 'ui-overlay hidden';
     this.dialogEl.innerHTML = `
       <div class="dialog-box">
-        <div id="dialog-speaker" class="dialog-speaker">Signboard</div>
+        <div id="dialog-speaker" class="dialog-speaker">${t('Signboard')}</div>
         <div id="dialog-body" class="dialog-body"></div>
-        <div class="dialog-prompt">Press Space / Enter to continue...</div>
+        <div class="dialog-prompt">${t('Press Space / Enter to continue...')}</div>
       </div>
     `;
     container.appendChild(this.dialogEl);
@@ -81,27 +82,27 @@ export class UI {
     this.invEl.innerHTML = `
       <div class="modal-box">
         <div class="modal-header">
-          <h2>INVENTORY & EQUIPMENT</h2>
+          <h2>${t('INVENTORY & EQUIPMENT')}</h2>
           <button id="inv-close-btn" class="close-btn">&times;</button>
         </div>
         <div class="modal-body">
           <div class="stats-panel">
             <h3>SARIC</h3>
-            <div id="stat-level">Level: 1</div>
-            <div id="stat-hp">HP: 20 / 20</div>
-            <div id="stat-st">Stamina: 100</div>
-            <div id="stat-atk">Attack: 4</div>
-            <div id="stat-def">Defense: 0</div>
-            <div id="stat-xp">XP: 0 / 30</div>
-            <div id="stat-gold">Gold: 50</div>
+            <div id="stat-level">${t('Level: {n}', { n: 1 })}</div>
+            <div id="stat-hp">${t('HP: {hp} / {max}', { hp: 20, max: 20 })}</div>
+            <div id="stat-st">${t('Stamina: {n}', { n: 100 })}</div>
+            <div id="stat-atk">${t('Attack: {n}', { n: 4 })}</div>
+            <div id="stat-def">${t('Defense: {n}', { n: 0 })}</div>
+            <div id="stat-xp">${t('XP: {x} / {next}', { x: 0, next: 30 })}</div>
+            <div id="stat-gold">${t('Gold: {n}', { n: 50 })}</div>
           </div>
           <div class="items-panel">
             <div class="tabs">
-              <button class="tab-btn active" data-tab="weapon">⚔️ Weapon</button>
-              <button class="tab-btn" data-tab="armor">🛡️ Armor</button>
-              <button class="tab-btn" data-tab="consumable">🧪 Items</button>
-              <button class="tab-btn" data-tab="misc">🔑 Other</button>
-              <button class="tab-btn" data-tab="message">✉️ Messages</button>
+              <button class="tab-btn active" data-tab="weapon">${t('⚔️ Weapon')}</button>
+              <button class="tab-btn" data-tab="armor">${t('🛡️ Armor')}</button>
+              <button class="tab-btn" data-tab="consumable">${t('🧪 Items')}</button>
+              <button class="tab-btn" data-tab="misc">${t('🔑 Other')}</button>
+              <button class="tab-btn" data-tab="message">${t('✉️ Messages')}</button>
             </div>
             <div id="item-list" class="item-list"></div>
           </div>
@@ -117,15 +118,15 @@ export class UI {
     this.shopEl.innerHTML = `
       <div class="modal-box">
         <div class="modal-header">
-          <h2>STORE</h2>
+          <h2>${t('STORE')}</h2>
           <button id="shop-close-btn" class="close-btn">&times;</button>
         </div>
         <div class="modal-body">
           <div class="shop-list-container">
             <p id="shop-greeting" class="shop-greeting"></p>
-            <h3>For Sale</h3>
+            <h3>${t('For Sale')}</h3>
             <div id="shop-items-list" class="item-list"></div>
-            <h3>Your Items</h3>
+            <h3>${t('Your Items')}</h3>
             <div id="shop-sell-list" class="item-list"></div>
           </div>
         </div>
@@ -140,7 +141,7 @@ export class UI {
     this.saveEl.innerHTML = `
       <div class="modal-box">
         <div class="modal-header">
-          <h2>SAVE / LOAD GAME</h2>
+          <h2>${t('SAVE / LOAD GAME')}</h2>
           <button id="save-close-btn" class="close-btn">&times;</button>
         </div>
         <div class="modal-body">
@@ -172,7 +173,7 @@ export class UI {
     this.dialogTitle = title;
     this.dialogText = text;
     this.dialogActive = true;
-    document.getElementById('dialog-speaker').textContent = title || 'Message';
+    document.getElementById('dialog-speaker').textContent = title || t('Message');
     document.getElementById('dialog-body').textContent = text;
     this.dialogEl.classList.remove('hidden');
   }
@@ -230,13 +231,13 @@ export class UI {
 
   updateStatsDisplay() {
     const p = this.game.player;
-    document.getElementById('stat-level').textContent = `Level: ${p.level}`;
-    document.getElementById('stat-hp').textContent = `HP: ${p.hp} / ${p.hpMax}`;
-    document.getElementById('stat-st').textContent = `Stamina: ${Math.round(p.stamina)}`;
-    document.getElementById('stat-atk').textContent = `Attack: ${p.attack}`;
-    document.getElementById('stat-def').textContent = `Defense: ${p.defense}`;
-    document.getElementById('stat-xp').textContent = `XP: ${p.xp} / ${p.nextXp}`;
-    document.getElementById('stat-gold').textContent = `Gold: ${p.gold}`;
+    document.getElementById('stat-level').textContent = t('Level: {n}', { n: p.level });
+    document.getElementById('stat-hp').textContent = t('HP: {hp} / {max}', { hp: p.hp, max: p.hpMax });
+    document.getElementById('stat-st').textContent = t('Stamina: {n}', { n: Math.round(p.stamina) });
+    document.getElementById('stat-atk').textContent = t('Attack: {n}', { n: p.attack });
+    document.getElementById('stat-def').textContent = t('Defense: {n}', { n: p.defense });
+    document.getElementById('stat-xp').textContent = t('XP: {x} / {next}', { x: p.xp, next: p.nextXp });
+    document.getElementById('stat-gold').textContent = t('Gold: {n}', { n: p.gold });
   }
 
   renderInventoryItems() {
@@ -246,7 +247,7 @@ export class UI {
 
     const filtered = p.inventory.filter((item) => item.type === this.activeTab);
     if (filtered.length === 0) {
-      listEl.innerHTML = '<div class="empty-msg">No items in this category.</div>';
+      listEl.innerHTML = `<div class="empty-msg">${t('No items in this category.')}</div>`;
       return;
     }
 
@@ -259,7 +260,7 @@ export class UI {
       row.innerHTML = `
         <div class="item-icon" style="${iconStyle(item, this.gfx)}"></div>
         <div class="item-text">
-          <div class="item-name">${item.name} ${isEquipped ? '<span class="equipped-tag">[Equipped]</span>' : ''}</div>
+          <div class="item-name">${item.name} ${isEquipped ? `<span class="equipped-tag">${t('[Equipped]')}</span>` : ''}</div>
           <div class="item-desc">${item.desc || ''}</div>
         </div>
         <div class="item-actions"></div>
@@ -270,7 +271,7 @@ export class UI {
         if (!isEquipped) {
           const btn = document.createElement('button');
           btn.className = 'action-btn';
-          btn.textContent = 'Equip';
+          btn.textContent = t('Equip');
           btn.addEventListener('click', () => {
             p.equip(item);
             this.updateStatsDisplay();
@@ -281,7 +282,7 @@ export class UI {
       } else if (item.type === ITEM_TYPES.CONSUMABLE) {
         const btn = document.createElement('button');
         btn.className = 'action-btn';
-        btn.textContent = 'Use';
+        btn.textContent = t('Use');
         btn.addEventListener('click', () => {
           if (p.useItem(item)) {
             this.updateStatsDisplay();
@@ -292,7 +293,7 @@ export class UI {
       } else if (item.type === ITEM_TYPES.MESSAGE) {
         const btn = document.createElement('button');
         btn.className = 'action-btn';
-        btn.textContent = 'Read';
+        btn.textContent = t('Read');
         btn.addEventListener('click', () => {
           this.toggleInventory(false);
           this.showDialog(item.name, item.desc);
@@ -309,7 +310,7 @@ export class UI {
 
     const store = this.game.currentStore;
     if (!store) {
-      listEl.innerHTML = '<div class="empty-msg">Nothing for sale here.</div>';
+      listEl.innerHTML = `<div class="empty-msg">${t('Nothing for sale here.')}</div>`;
       return;
     }
 
@@ -324,11 +325,11 @@ export class UI {
       row.innerHTML = `
         <div class="item-icon" style="${iconStyle(item, this.gfx)}"></div>
         <div class="item-text">
-          <div class="item-name">${item.name} - <span class="gold-text">${entry.price} Gold</span></div>
+          <div class="item-name">${item.name} - <span class="gold-text">${t('{price} Gold', { price: entry.price })}</span></div>
           <div class="item-desc">${item.desc}</div>
         </div>
         <div class="item-actions">
-          <button class="action-btn buy-btn">Buy</button>
+          <button class="action-btn buy-btn">${t('Buy')}</button>
         </div>
       `;
       row.querySelector('.buy-btn').addEventListener('click', () => {
@@ -353,7 +354,7 @@ export class UI {
     const sellable = p.inventory.filter((item) => isSellable(item)
       && p.weapon?.code !== item.code && p.armor?.code !== item.code);
     if (sellable.length === 0) {
-      listEl.innerHTML = '<div class="empty-msg">Nothing to sell.</div>';
+      listEl.innerHTML = `<div class="empty-msg">${t('Nothing to sell.')}</div>`;
       return;
     }
 
@@ -364,11 +365,11 @@ export class UI {
       row.innerHTML = `
         <div class="item-icon" style="${iconStyle(item, this.gfx)}"></div>
         <div class="item-text">
-          <div class="item-name">${item.name} - <span class="gold-text">${price} Gold</span></div>
+          <div class="item-name">${item.name} - <span class="gold-text">${t('{price} Gold', { price })}</span></div>
           <div class="item-desc">${item.desc || ''}</div>
         </div>
         <div class="item-actions">
-          <button class="action-btn sell-btn">Sell</button>
+          <button class="action-btn sell-btn">${t('Sell')}</button>
         </div>
       `;
       row.querySelector('.sell-btn').addEventListener('click', () => {
@@ -394,9 +395,9 @@ export class UI {
 
       if (s.empty) {
         card.innerHTML = `
-          <div class="save-title">Slot ${s.slot}: Empty</div>
+          <div class="save-title">${t('Slot {n}: Empty', { n: s.slot })}</div>
           <div class="save-actions">
-            <button class="action-btn save-btn">Save</button>
+            <button class="action-btn save-btn">${t('Save')}</button>
           </div>
         `;
         card.querySelector('.save-btn').addEventListener('click', () => {
@@ -406,12 +407,12 @@ export class UI {
       } else {
         const d = s.data;
         card.innerHTML = `
-          <div class="save-title">Slot ${s.slot}: LV ${d.level} (Screen ${d.screenIndex})</div>
-          <div class="save-meta">HP: ${d.hp}/${d.hpMax} | Gold: ${d.gold} | Saved: ${d.timestamp}</div>
+          <div class="save-title">${t('Slot {n}: LV {level} (Screen {screen})', { n: s.slot, level: d.level, screen: d.screenIndex })}</div>
+          <div class="save-meta">${t('HP: {hp}/{max} | Gold: {gold} | Saved: {timestamp}', { hp: d.hp, max: d.hpMax, gold: d.gold, timestamp: d.timestamp })}</div>
           <div class="save-actions">
-            <button class="action-btn save-btn">Overwrite</button>
-            <button class="action-btn load-btn">Load</button>
-            <button class="action-btn del-btn">Delete</button>
+            <button class="action-btn save-btn">${t('Overwrite')}</button>
+            <button class="action-btn load-btn">${t('Load')}</button>
+            <button class="action-btn del-btn">${t('Delete')}</button>
           </div>
         `;
         card.querySelector('.save-btn').addEventListener('click', () => {

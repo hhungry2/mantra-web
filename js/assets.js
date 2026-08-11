@@ -1,5 +1,7 @@
 // Loads the PNG atlases and JSON data files.
 
+import { localizeMessages, localizeItem, localizeStores } from './i18n.js';
+
 const BASE = 'assets/';
 
 function loadImage(src) {
@@ -39,9 +41,9 @@ export async function loadAssets() {
 
   return {
     tiles, sprites, bosses, icons, win, lose, map, gfx,
-    items: items.items,
-    stores: stores.stores,
-    textMsgs: text,
+    items: items.items.map(localizeItem),
+    stores: localizeStores(stores.stores),
+    textMsgs: localizeMessages(text),
     tileIndex, spriteIndex, iconIndex,
   };
 }

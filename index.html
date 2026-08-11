@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mantra Web Port (Action RPG)</title>
+  <title data-i18n="Mantra Web Port (Action RPG)">Mantra Web Port (Action RPG)</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="icon" type="image/png" href="assets/ui/cursor.png">
 </head>
 <body>
   <header>
     <h1>MANTRA</h1>
-    <p class="subtitle">Action RPG Web Port (1995 Syzygy Cult)</p>
+    <p class="subtitle" data-i18n="Action RPG Web Port (1995 Syzygy Cult)">Action RPG Web Port (1995 Syzygy Cult)</p>
   </header>
 
   <main id="game-container">
@@ -19,23 +19,32 @@
     <div id="overlay-screen" class="title-screen">
       <img id="overlay-logo" src="assets/ui/mantra.png" alt="MANTRA">
       <p id="overlay-msg" class="title-status" aria-live="polite"></p>
-      <div class="title-menu" role="menu" aria-label="Main menu">
-        <button id="start-btn" class="title-btn" type="button">New</button>
-        <button id="open-btn" class="title-btn" type="button">Open</button>
-        <button class="title-btn" type="button" disabled>Save</button>
-        <button class="title-btn" type="button" disabled>Resume</button>
+      <div class="title-menu" role="menu" aria-label="Main menu" data-i18n-aria-label="Main menu">
+        <button id="start-btn" class="title-btn" type="button" data-i18n="New">New</button>
+        <button id="open-btn" class="title-btn" type="button" data-i18n="Open">Open</button>
+        <button class="title-btn" type="button" disabled data-i18n="Save">Save</button>
+        <button class="title-btn" type="button" disabled data-i18n="Resume">Resume</button>
       </div>
-      <label class="debug-toggle">
-        <input id="debug-mode" type="checkbox">
-        <span>DEBUG MODE: HP / DASH</span>
+      <label class="language-toggle">
+        <span data-i18n="Language">Language</span>
+        <select id="lang-select" aria-label="Language" data-i18n-aria-label="Language">
+          <option value="en" data-i18n="English">English</option>
+          <option value="ja" data-i18n="日本語">日本語</option>
+        </select>
       </label>
     </div>
 
     <div id="story-screen" class="ui-overlay hidden">
-      <img src="assets/ui/story.png" alt="Story">
-      <button id="story-btn" class="btn">CONTINUE</button>
+      <img src="assets/ui/story.png" alt="Story" data-i18n-alt="Story">
+      <button id="story-btn" class="btn" data-i18n="CONTINUE">CONTINUE</button>
     </div>
+
   </main>
+
+  <label class="debug-toggle">
+    <input id="debug-mode" type="checkbox">
+    <span data-i18n="DEBUG MODE: HP / DASH">DEBUG MODE: HP / DASH</span>
+  </label>
 
   <footer id="controls-guide">
     <div><span class="key-badge">Arrow / WASD</span> 移動</div>

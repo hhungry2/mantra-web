@@ -110,7 +110,10 @@ canvas#game-canvas {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 18px;
+  margin: 0.75rem auto 0;
+  padding: 4px 8px;
+  background: rgba(11, 12, 16, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   color: #bdbdbd;
   cursor: pointer;
   font: 13px/1.2 monospace;
@@ -121,6 +124,26 @@ canvas#game-canvas {
   height: 18px;
   margin: 0;
   accent-color: #c9c9c9;
+  cursor: pointer;
+}
+
+.language-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: #bdbdbd;
+  cursor: pointer;
+  font: 13px/1.2 monospace;
+}
+
+.language-toggle select {
+  min-width: 100px;
+  padding: 4px 6px;
+  border: 1px solid #777;
+  background: #c9c9c9;
+  color: #111;
+  font: inherit;
   cursor: pointer;
 }
 

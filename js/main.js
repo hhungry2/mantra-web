@@ -15,6 +15,7 @@ import { Audio } from './audio.js';
 import { UI } from './ui.js';
 import { initItems, getItem } from './items.js';
 import { TouchControls } from './touch.js';
+import { t, getLang, setLang, localizeBossName, applyDocumentStrings } from './i18n.js';
 
 // Shopfront tiles. Which of the five shops a door leads to is not recorded,
 // so the storefront art picks one and a given door always opens the same.
@@ -66,7 +67,7 @@ class Game {
 
     // Key handlers
     this.input.on('KeyM', () => {
-      this.hudNote = this.audio.toggle() ? 'SOUND ON' : 'SOUND OFF';
+      this.hudNote = this.audio.toggle() ? t('SOUND ON') : t('SOUND OFF');
       this.noteUntil = this.frame + 40;
     });
 
@@ -142,7 +143,7 @@ class Game {
     const startX = START_TILE.x * TILE + TILE / 2;
     const startY = START_TILE.y * TILE + TILE / 2;
     this.enter(d.screenIndex ?? START_SCREEN, position.x ?? startX, position.y ?? startY);
-    this.hudNote = 'GAME LOADED!';
+    this.hudNote = t('GAME LOADED!');
     this.noteUntil = this.frame + 60;
   }
 
@@ -182,7 +183,7 @@ class Game {
       return;
     }
 
-    this.hudNote = 'NOTHING HERE';
+    this.hudNote = t('NOTHING HERE');
     this.noteUntil = this.frame + 25;
   }
 
@@ -200,7 +201,7 @@ class Game {
     if (!item) return;
     this.player.addItem(item);
     this.audio.play('item');
-    this.hudNote = `FOUND ${item.name.toUpperCase()}`;
+    this.hudNote = t('FOUND {name}', { name: item.name.toUpperCase() });
     this.noteUntil = this.frame + 50;
 
     const text = enemy.message > 0 ? this.textMsgs[enemy.message - 1] : null;
@@ -217,16 +218,17 @@ class Game {
     if (drop) {
       this.player.addItem(drop);
       this.audio.play('item');
-      this.hudNote = `FOUND ${drop.name.toUpperCase()}`;
+      this.hudNote = t('FOUND {name}', { name: drop.name.toUpperCase() });
       this.noteUntil = this.frame + 50;
     }
 
     if (enemy.boss) {
-      this.hudNote = `${(BOSS_NAMES[enemy.ai] || 'BOSS').toUpperCase()} DEFEATED`;
+      const bossName = localizeBossName(BOSS_NAMES[enemy.ai] || t('BOSS'), enemy.ai);
+      this.hudNote = t('{name} DEFEATED', { name: bossName.toUpperCase() });
       this.noteUntil = this.frame + 60;
       this.audio.play('fanfare');
     } else if (leveledUp) {
-      this.hudNote = 'LEVEL UP!';
+      this.hudNote = t('LEVEL UP!');
       this.noteUntil = this.frame + 60;
     }
   }
@@ -360,7 +362,7 @@ class Game {
     const hasAllMantras = MANTRA_CODES.every((c) => player.inventory.some((i) => i.code === c));
     if (!this.victory && hasAllMantras && !this.mantrasReady) {
       this.mantrasReady = true;
-      this.hudNote = 'The five Mantras are yours. Bring them to Castle Blednock!';
+      this.hudNote = t('The five Mantras are yours. Bring them to Castle Blednock!');
       this.noteUntil = this.frame + 150;
     }
     if (!this.victory && hasAllMantras && this.screenIndex === CASTLE_BLEDNOCK_SCREEN) {
@@ -378,14 +380,14 @@ class Game {
 
     const gridX = this.screenIndex % 16;
     const gridY = Math.floor(this.screenIndex / 16);
-    let note = `SCREEN ${this.screenIndex} (${gridX},${gridY})`;
+    let note = t('SCREEN {n} ({x},{y})', { n: this.screenIndex, x: gridX, y: gridY });
     if (this.noteUntil > this.frame) note = this.hudNote;
     r.drawHud(this.player, note);
 
     if (this.player.dead) {
-      r.drawEndCard(this.renderer.lose, 'Press V to load a saved game');
+      r.drawEndCard(this.renderer.lose, t('Press V to load a saved game'));
     } else if (this.victory) {
-      r.drawEndCard(this.renderer.win, 'You brought the five Mantras to Castle Blednock');
+      r.drawEndCard(this.renderer.win, t('You brought the five Mantras to Castle Blednock'));
     }
   }
 }
@@ -398,15 +400,25 @@ async function boot() {
   const openButton = document.getElementById('open-btn');
   const debugToggle = document.getElementById('debug-mode');
 
-  message.textContent = 'Loading assets...';
+  message.textContent = t('Loading assets...');
   button.disabled = true;
+
+  applyDocumentStrings();
+  const langSelect = document.getElementById('lang-select');
+  if (langSelect) {
+    langSelect.value = getLang();
+    langSelect.addEventListener('change', () => {
+      setLang(langSelect.value);
+      location.reload();
+    });
+  }
 
   let assets;
   try {
     assets = await loadAssets();
   } catch (err) {
     message.hidden = false;
-    message.textContent = `Could not load assets: ${err.message}`;
+    message.textContent = t('Could not load assets: {err}', { err: err.message });
     return;
   }
 
@@ -438,6 +450,8 @@ async function boot() {
       game.player.stamina = 100;
     }
   };
+
+  debugToggle.addEventListener('change', applyDebugMode);
 
   button.addEventListener('click', () => {
     applyDebugMode();

@@ -1,5 +1,7 @@
 // Save & Load Manager using localStorage (4 slots)
 
+import { getLang } from './i18n.js';
+
 const SAVE_KEY_PREFIX = 'mantra_web_save_slot_';
 
 export class SaveManager {
@@ -39,7 +41,7 @@ export class SaveManager {
       screenIndex: game.screenIndex,
       playerPos: { x: Math.round(p.x), y: Math.round(p.y) },
       defeatedMasks: Array.from(game.defeatedMasks),
-      timestamp: new Date().toLocaleString('ja-JP'),
+      timestamp: new Date().toLocaleString(getLang() === 'ja' ? 'ja-JP' : 'en-US'),
     };
     localStorage.setItem(SAVE_KEY_PREFIX + slotId, JSON.stringify(saveData));
     return true;
