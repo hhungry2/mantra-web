@@ -36,6 +36,7 @@ export class SaveManager {
       baseAttack: p.baseAttack,
       baseDefense: p.baseDefense,
       weaponCode: p.weapon ? p.weapon.code : null,
+      offhandCode: p.offhand ? p.offhand.code : null,
       armorCode: p.armor ? p.armor.code : null,
       inventoryCodes: p.inventory.map((item) => item.code),
       screenIndex: game.screenIndex,

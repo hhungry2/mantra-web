@@ -408,6 +408,13 @@ canvas#game-canvas {
   color: #8892b0;
 }
 
+.item-stats {
+  margin-top: 0.25rem;
+  color: var(--accent-color);
+  font-size: 0.75rem;
+  font-family: monospace;
+}
+
 .gold-text {
   color: var(--gold-color);
 }
@@ -475,6 +482,10 @@ canvas#game-canvas {
   z-index: 100;
 }
 
+#touch-controls.hidden {
+  display: none !important;
+}
+
 @media (max-width: 1024px), (pointer: coarse) {
   #touch-controls {
     display: flex;
@@ -516,6 +527,18 @@ canvas#game-canvas {
   border-radius: 50%;
   font-size: 0.8rem;
   box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+@media (max-width: 600px) {
+  .action-buttons {
+    gap: 6px;
+  }
+
+  .action-buttons .action-btn {
+    width: 45px;
+    height: 45px;
+    font-size: 0.7rem;
+  }
 }
 
 #controls-guide {

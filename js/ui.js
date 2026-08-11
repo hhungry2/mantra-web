@@ -1,36 +1,8 @@
 // RPG UI Overlays: Dialogue Textbox, Tabbed Inventory Modal, Shop Window, and Save/Load Manager.
 
-import { ITEM_TYPES, getItem } from './items.js';
+import { ITEM_TYPES, getItem, isEquipable } from './items.js';
 import { SaveManager } from './save.js';
 import { t } from './i18n.js';
-
-// Items carry no price of their own - StoreData only prices what a shop
-// sells. To let the player sell anything, price it off whichever shop (if
-// any) already stocks it, and fall back to a stat-based guess for items no
-// store carries. Selling always pays half of whatever that comes out to.
-function baseValue(game, item) {
-  for (const store of game.stores) {
-    const entry = store.stock.find((s) => s.code === item.code);
-    if (entry) return entry.price;
-  }
-  if (item.type === ITEM_TYPES.WEAPON) return 20 + (item.damage || 0) * 5;
-  if (item.type === ITEM_TYPES.ARMOR) return 20 + (item.armor || 0) * 5;
-  if (item.type === ITEM_TYPES.CONSUMABLE) return 10 + (item.heal || 0) * 2;
-  return 5;
-}
-
-function sellPrice(game, item) {
-  return Math.max(1, Math.floor(baseValue(game, item) / 2));
-}
-
-// isSpecialItem (64) turns out to be set on ordinary consumables too (e.g.
-// the Healing Potion), so it can't tell quest items apart from goods; the
-// Key and the five Mantras are named by code instead. Letters aren't goods
-// either.
-const QUEST_ITEM_CODES = new Set([150, 100, 101, 102, 103, 104]);
-function isSellable(item) {
-  return item.type !== ITEM_TYPES.MESSAGE && !QUEST_ITEM_CODES.has(item.code);
-}
 
 // Items carry the icon id their artwork sits under in icons32.png; a few of
 // them (the Rapier, for one) have no icon in the file, so this can come back
@@ -41,6 +13,19 @@ function iconStyle(item, gfx) {
   const x = (index % gfx.icons32.cols) * gfx.icons32.size;
   const y = Math.floor(index / gfx.icons32.cols) * gfx.icons32.size;
   return `background-image:url(assets/icons32.png);background-position:-${x}px -${y}px`;
+}
+
+function itemStats(item) {
+  if (!isEquipable(item)) return '';
+  const stats = [
+    t('Damage: {n}', { n: item.damage || 0 }),
+    t('Armor: {n}', { n: item.armor || 0 }),
+    t('Speed: {n}', { n: item.speed || 0 }),
+    t('Rate: {n}', { n: item.rate || 0 }),
+    t('Stamina: {n}', { n: item.stamina || 0 }),
+    t('Charges: {n}', { n: item.charges || 0 }),
+  ];
+  return `<div class="item-stats">${stats.join(' | ')}</div>`;
 }
 
 export class UI {
@@ -187,6 +172,7 @@ export class UI {
     this.inventoryOpen = show !== undefined ? show : !this.inventoryOpen;
     if (this.inventoryOpen) {
       this.shopOpen = false;
+      if (this.saveOpen) this.game.audio.unmute();
       this.saveOpen = false;
       this.shopEl.classList.add('hidden');
       this.saveEl.classList.add('hidden');
@@ -203,6 +189,7 @@ export class UI {
     this.shopOpen = show !== undefined ? show : !this.shopOpen;
     if (this.shopOpen) {
       this.inventoryOpen = false;
+      if (this.saveOpen) this.game.audio.unmute();
       this.saveOpen = false;
       this.invEl.classList.add('hidden');
       this.saveEl.classList.add('hidden');
@@ -217,6 +204,7 @@ export class UI {
   toggleSave(show) {
     this.saveOpen = show !== undefined ? show : !this.saveOpen;
     if (this.saveOpen) {
+      this.game.audio.mute();
       this.inventoryOpen = false;
       this.shopOpen = false;
       this.invEl.classList.add('hidden');
@@ -225,6 +213,7 @@ export class UI {
       this.renderSaveSlots();
       this.saveEl.classList.remove('hidden');
     } else {
+      this.game.audio.unmute();
       this.saveEl.classList.add('hidden');
     }
   }
@@ -254,31 +243,29 @@ export class UI {
     filtered.forEach((item) => {
       const row = document.createElement('div');
       row.className = 'item-row';
-      const isEquipped = (p.weapon && p.weapon.code === item.code)
-        || (p.armor && p.armor.code === item.code);
+      const isEquipped = p.isEquipped(item);
 
       row.innerHTML = `
         <div class="item-icon" style="${iconStyle(item, this.gfx)}"></div>
         <div class="item-text">
           <div class="item-name">${item.name} ${isEquipped ? `<span class="equipped-tag">${t('[Equipped]')}</span>` : ''}</div>
           <div class="item-desc">${item.desc || ''}</div>
+          ${itemStats(item)}
         </div>
         <div class="item-actions"></div>
       `;
 
       const actionsEl = row.querySelector('.item-actions');
-      if (item.type === ITEM_TYPES.WEAPON || item.type === ITEM_TYPES.ARMOR) {
-        if (!isEquipped) {
-          const btn = document.createElement('button');
-          btn.className = 'action-btn';
-          btn.textContent = t('Equip');
-          btn.addEventListener('click', () => {
-            p.equip(item);
-            this.updateStatsDisplay();
-            this.renderInventoryItems();
-          });
-          actionsEl.appendChild(btn);
-        }
+      if (isEquipable(item)) {
+        const btn = document.createElement('button');
+        btn.className = 'action-btn';
+        btn.textContent = isEquipped ? t('Unequip') : t('Equip');
+        btn.addEventListener('click', () => {
+          p.equip(item);
+          this.updateStatsDisplay();
+          this.renderInventoryItems();
+        });
+        actionsEl.appendChild(btn);
       } else if (item.type === ITEM_TYPES.CONSUMABLE) {
         const btn = document.createElement('button');
         btn.className = 'action-btn';
@@ -327,6 +314,7 @@ export class UI {
         <div class="item-text">
           <div class="item-name">${item.name} - <span class="gold-text">${t('{price} Gold', { price: entry.price })}</span></div>
           <div class="item-desc">${item.desc}</div>
+          ${itemStats(item)}
         </div>
         <div class="item-actions">
           <button class="action-btn buy-btn">${t('Buy')}</button>
@@ -343,43 +331,30 @@ export class UI {
       listEl.appendChild(row);
     });
 
-    this.renderSellList();
+    this.renderOwnedItems();
   }
 
-  renderSellList() {
+  renderOwnedItems() {
     const p = this.game.player;
     const listEl = document.getElementById('shop-sell-list');
     listEl.innerHTML = '';
 
-    const sellable = p.inventory.filter((item) => isSellable(item)
-      && p.weapon?.code !== item.code && p.armor?.code !== item.code);
-    if (sellable.length === 0) {
-      listEl.innerHTML = `<div class="empty-msg">${t('Nothing to sell.')}</div>`;
+    if (p.inventory.length === 0) {
+      listEl.innerHTML = `<div class="empty-msg">${t('No items owned.')}</div>`;
       return;
     }
 
-    sellable.forEach((item) => {
-      const price = sellPrice(this.game, item);
+    p.inventory.forEach((item) => {
       const row = document.createElement('div');
       row.className = 'item-row';
       row.innerHTML = `
         <div class="item-icon" style="${iconStyle(item, this.gfx)}"></div>
         <div class="item-text">
-          <div class="item-name">${item.name} - <span class="gold-text">${t('{price} Gold', { price })}</span></div>
+          <div class="item-name">${item.name}</div>
           <div class="item-desc">${item.desc || ''}</div>
-        </div>
-        <div class="item-actions">
-          <button class="action-btn sell-btn">${t('Sell')}</button>
+          ${itemStats(item)}
         </div>
       `;
-      row.querySelector('.sell-btn').addEventListener('click', () => {
-        const idx = p.inventory.indexOf(item);
-        if (idx < 0) return;
-        p.inventory.splice(idx, 1);
-        p.gold += price;
-        this.game.audio.play('hit');
-        this.renderShopItems();
-      });
       listEl.appendChild(row);
     });
   }

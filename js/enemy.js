@@ -165,6 +165,32 @@ export class EnemyProjectile {
   }
 }
 
+export class PlayerProjectile {
+  constructor(x, y, vx, vy, damage, sprite) {
+    this.x = x;
+    this.y = y;
+    this.vx = vx;
+    this.vy = vy;
+    this.damage = Math.max(1, damage);
+    this.sprite = sprite || 0;
+    this.lifetime = 120;
+    this.dead = false;
+  }
+
+  get body() {
+    return box(this.x, this.y, 8, 8);
+  }
+
+  update(world, screen) {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.lifetime--;
+    if (this.lifetime <= 0 || world.isSolidPixel(screen, Math.round(this.x), Math.round(this.y))) {
+      this.dead = true;
+    }
+  }
+}
+
 export function spawnScreen(screen, defeatedMask = 0) {
   const enemies = [];
   if (!screen || !screen.enemies) return enemies;

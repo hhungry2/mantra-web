@@ -9,9 +9,12 @@ export const FLAG = {
   ARMOR: 2,
   MONEY: 4,
   MESSAGE: 8,
-  RING: 32,
-  CARRY: 64,
-  MAGIC: 128,
+  NOT_SELECTABLE: 16,
+  SELECTABLE: 32,
+  SPECIAL: 64,
+  MISSILE: 128,
+  HAS_CHARGES: 256,
+  SPECIAL_ROUTINE: 512,
 };
 
 export const ITEM_TYPES = {
@@ -23,16 +26,34 @@ export const ITEM_TYPES = {
   MISC: 'misc',
 };
 
-// Which inventory tab an item lands in. Rings sit with armour because that is
-// what they do here: "Provides Magical Protection".
+// The original separates main-hand swords, armor and selectable/special items;
+// the latter are the off-hand "Other" equipment in this port.
 function typeOf(item) {
   const attributes = item.attributes || 0;
-  if (attributes & (FLAG.WEAPON | FLAG.MAGIC)) return ITEM_TYPES.WEAPON;
-  if (attributes & (FLAG.ARMOR | FLAG.RING)) return ITEM_TYPES.ARMOR;
+  if (attributes & FLAG.WEAPON) return ITEM_TYPES.WEAPON;
+  if (attributes & FLAG.ARMOR) return ITEM_TYPES.ARMOR;
   if (attributes & FLAG.MONEY) return ITEM_TYPES.MONEY;
   if (attributes & FLAG.MESSAGE) return ITEM_TYPES.MESSAGE;
   if (item.heal > 0 || item.stamina < 0) return ITEM_TYPES.CONSUMABLE;
   return ITEM_TYPES.MISC;
+}
+
+export function isEquipable(item) {
+  if (!item) return false;
+  if (item.type === ITEM_TYPES.WEAPON || item.type === ITEM_TYPES.ARMOR) return true;
+  return item.type === ITEM_TYPES.MISC
+    && !!(item.attributes & (FLAG.SELECTABLE | FLAG.SPECIAL));
+}
+
+export function isRangedItem(item) {
+  return isEquipable(item) && !!(item.attributes & FLAG.MISSILE) && !!item.fires;
+}
+
+export function getEquipmentSlot(item) {
+  if (!isEquipable(item)) return null;
+  if (item.type === ITEM_TYPES.WEAPON) return 'weapon';
+  if (item.type === ITEM_TYPES.ARMOR) return 'armor';
+  return 'offhand';
 }
 
 const byCode = new Map();

@@ -7,8 +7,8 @@ import { loadAssets } from './assets.js';
 import { World, MOD } from './map.js';
 import { Renderer } from './renderer.js';
 import { Input } from './input.js';
-import { Saric } from './saric.js';
-import { spawnScreen, makeMover, EnemyProjectile } from './enemy.js';
+import { Saric, DIR_VECTORS } from './saric.js';
+import { spawnScreen, makeMover, EnemyProjectile, PlayerProjectile } from './enemy.js';
 import { BOSS_NAMES } from './enemy_ai.js';
 import { overlaps } from './collision.js';
 import { Audio } from './audio.js';
@@ -102,6 +102,7 @@ class Game {
     // with a movementType of 50 or above.
     this.enemies = spawnScreen(this.screen, this.defeatedMasks[index]);
     this.projectiles = [];
+    this.playerProjectiles = [];
     this.move = makeMover(this.world, this.screen);
 
     if (this.audio.ctx) this.audio.playMusic(this.world.musicIndexAt(this.screen));
@@ -117,6 +118,7 @@ class Game {
     this.player.terrainCooldown = 0;
     this.player.swing = 0;
     this.player.cooldown = 0;
+    this.player.rangedCooldown = 0;
 
     this.player.level = d.level;
     this.player.hp = d.hp;
@@ -129,6 +131,7 @@ class Game {
     this.player.baseDefense = d.baseDefense;
 
     this.player.weapon = d.weaponCode ? getItem(d.weaponCode) : null;
+    this.player.offhand = d.offhandCode ? getItem(d.offhandCode) : null;
     this.player.armor = d.armorCode ? getItem(d.armorCode) : null;
 
     if (d.inventoryCodes) {
@@ -147,11 +150,11 @@ class Game {
     this.noteUntil = this.frame + 60;
   }
 
-  // A door's `special` field carries a destination, not a shop number, so
-  // which of the five shops lies behind a given door is still a guess: the
-  // shopfront art picks it, and the same door always opens the same shop.
+  // StoreData contains stock and prices, but no map-door association. The
+  // extracted storefront tile IDs provide the shop index; underworld doors
+  // use the same artwork range and must not open a shop.
   storeAt(tile, mod) {
-    if (!(mod & MOD.IS_DOOR)) return null;
+    if (!(mod & MOD.IS_DOOR) || (mod & MOD.LEADS_TO_UNDERWORLD)) return null;
     const index = tile - SHOP_TILE_BASE;
     if (index < 0 || index >= this.stores.length) return null;
     return this.stores[index];
@@ -288,6 +291,22 @@ class Game {
     player.update(this.input, this.world, this.screen);
     if (player.swungThisFrame) this.audio.play('sword');
 
+    if (this.input.ranged) {
+      const item = player.fireRanged();
+      if (item) {
+        const [dx, dy] = DIR_VECTORS[player.dir];
+        this.playerProjectiles.push(new PlayerProjectile(
+          player.x + dx * 16,
+          player.y + dy * 16,
+          dx * 5,
+          dy * 5,
+          item.damage,
+          item.fires,
+        ));
+        this.audio.play('sword');
+      }
+    }
+
     this.checkScreenTransitions();
 
     // Map special values are signed: negative values are healing springs,
@@ -344,6 +363,23 @@ class Game {
 
     this.enemies = this.enemies.filter((e) => !e.dead);
 
+    // Player-fired missiles use the equipped off-hand item's damage and
+    // projectile sprite, and can defeat enemies from a distance.
+    for (const proj of this.playerProjectiles) {
+      if (proj.dead) continue;
+      proj.update(this.world, this.screen);
+      if (proj.dead) continue;
+      for (const enemy of this.enemies) {
+        if (enemy.dead || !enemy.killable || !overlaps(proj.body, enemy.body)) continue;
+        const killed = enemy.hurt(proj.damage, player.x, player.y);
+        this.audio.play(killed ? 'kill' : 'hit');
+        if (killed) this.defeat(enemy);
+        proj.dead = true;
+        break;
+      }
+    }
+    this.playerProjectiles = this.playerProjectiles.filter((p) => !p.dead);
+
     // Update Projectiles
     for (const proj of this.projectiles) {
       if (proj.dead) continue;
@@ -376,6 +412,7 @@ class Game {
     r.clear();
     r.drawScreen(this.screen);
     r.drawEntities(this.player, this.enemies);
+    r.drawProjectiles(this.playerProjectiles);
     r.drawProjectiles(this.projectiles);
 
     const gridX = this.screenIndex % 16;
@@ -436,6 +473,7 @@ async function boot() {
   const startGame = async () => {
     if (gameStarted) return;
     gameStarted = true;
+    game.touch.setVisible(true);
     await game.audio.start();
     await game.audio.playMusic(game.world.musicIndexAt(game.screen));
     run(game);

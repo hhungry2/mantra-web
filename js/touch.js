@@ -17,12 +17,14 @@ export class TouchControls {
         <button id="btn-right" class="dpad-btn right">►</button>
         <button id="btn-down" class="dpad-btn down">▼</button>
       </div>
-      <div class="action-buttons">
-        <button id="btn-attack" class="action-btn btn-a">A (Sword)</button>
-        <button id="btn-run" class="action-btn btn-b">B (Run)</button>
-        <button id="btn-inv" class="action-btn btn-i">INV</button>
+        <div class="action-buttons">
+          <button id="btn-attack" class="action-btn btn-a">A (Sword)</button>
+          <button id="btn-run" class="action-btn btn-b">B (Run)</button>
+          <button id="btn-ranged" class="action-btn btn-r">R (Ranged)</button>
+          <button id="btn-inv" class="action-btn btn-i">INV</button>
       </div>
     `;
+    this.container.classList.add('hidden');
     document.body.appendChild(this.container);
 
     this.bindTouch('btn-up', 'up');
@@ -31,6 +33,7 @@ export class TouchControls {
     this.bindTouch('btn-right', 'right');
     this.bindTouch('btn-run', 'run');
     this.bindTouch('btn-attack', 'attack');
+    this.bindTouch('btn-ranged', 'ranged');
 
     const invBtn = document.getElementById('btn-inv');
     invBtn.addEventListener('touchstart', (e) => {
@@ -38,6 +41,10 @@ export class TouchControls {
       const handler = this.input.listeners.get('KeyI');
       if (handler) handler();
     });
+  }
+
+  setVisible(visible) {
+    this.container.classList.toggle('hidden', !visible);
   }
 
   bindTouch(id, property) {

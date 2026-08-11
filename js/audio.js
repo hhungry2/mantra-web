@@ -31,6 +31,7 @@ export class Audio {
   constructor() {
     this.ctx = null;
     this.enabled = true;
+    this.muted = false;
     this.buffers = new Map();
     this.player = null;
     this.currentTrack = -1;
@@ -73,7 +74,7 @@ export class Audio {
   }
 
   play(name) {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.enabled || this.muted || !this.ctx) return;
     const buffer = this.buffers.get(name);
     if (!buffer) return;
     const src = this.ctx.createBufferSource();
@@ -100,7 +101,7 @@ export class Audio {
       // AudioBufferSourceNode graph this used to run, measured across all
       // nine tracks; trim it back to the level the game had before.
       this.player.setVolume(0.82);
-      if (this.enabled) this.player.play();
+      if (this.enabled && !this.muted) this.player.play();
     } finally {
       if (this.loadingTrack === index) this.loadingTrack = -1;
     }
@@ -109,7 +110,17 @@ export class Audio {
   toggle() {
     this.enabled = !this.enabled;
     if (!this.enabled) this.player?.stop();
-    else if (this.currentTrack >= 0) this.player.resume();
+    else if (!this.muted && this.currentTrack >= 0) this.player.resume();
     return this.enabled;
+  }
+
+  mute() {
+    this.muted = true;
+    this.player?.stop();
+  }
+
+  unmute() {
+    this.muted = false;
+    if (this.enabled && this.currentTrack >= 0) this.player?.resume();
   }
 }

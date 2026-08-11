@@ -8,6 +8,7 @@ const KEY_MAP = {
   ArrowDown: 'down', KeyS: 'down',
   ShiftLeft: 'run', ShiftRight: 'run',
   Space: 'attack',
+  KeyF: 'ranged',
 };
 
 export class Input {
@@ -18,6 +19,7 @@ export class Input {
     this.down = false;
     this.run = false;
     this.attack = false;
+    this.ranged = false;
     this.listeners = new Map();
 
     target.addEventListener('keydown', (e) => {
@@ -43,7 +45,7 @@ export class Input {
 
     target.addEventListener('blur', () => {
       this.left = this.right = this.up = this.down = false;
-      this.run = this.attack = false;
+      this.run = this.attack = this.ranged = false;
     });
   }
 

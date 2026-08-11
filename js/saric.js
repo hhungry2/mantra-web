@@ -5,7 +5,9 @@ import {
   SARIC_WALK_A, SARIC_WALK_B, SARIC_SWING_A, SARIC_SWING_B, SWORD_SPRITE,
 } from './config.js';
 import { box } from './collision.js';
-import { getItem, ITEM_CODES, ITEM_TYPES, FLAG } from './items.js';
+import {
+  ITEM_TYPES, FLAG, getEquipmentSlot, isRangedItem,
+} from './items.js';
 
 const WALK_SPEED = 2;
 const RUN_SPEED = 3.5;
@@ -45,21 +47,19 @@ export class Saric {
     this.baseAttack = 4;
     this.baseDefense = 0;
 
-    // Inventory & Equipment. Saric starts with what the story gives him: the
-    // sword he came ashore with and a couple of potions.
-    this.weapon = getItem(ITEM_CODES.WOODEN_SWORD);
+    // Saric starts empty-handed. The dagger is received from the wounded man
+    // on the opening screen, matching the original game's initSaric().
+    this.weapon = null;
+    this.offhand = null;
     this.armor = null;
-    this.inventory = [
-      getItem(ITEM_CODES.WOODEN_SWORD),
-      getItem(ITEM_CODES.HEALING_POTION),
-      getItem(ITEM_CODES.HEALING_POTION),
-    ].filter(Boolean);
+    this.inventory = [];
 
     this.walkTimer = 0;
     this.moving = false;
     this.running = false;
     this.swing = 0;
     this.cooldown = 0;
+    this.rangedCooldown = 0;
     this.invuln = 0;
     this.terrainCooldown = 0;
     this.debugMode = false;
@@ -68,13 +68,47 @@ export class Saric {
   }
 
   get attack() {
-    const wBonus = this.weapon ? (this.weapon.damage || 0) : 0;
-    return this.baseAttack + wBonus;
+    return this.baseAttack + this.weaponBonus('damage') + this.offhandBonus('damage');
   }
 
   get defense() {
-    const aBonus = this.armor ? (this.armor.armor || 0) : 0;
-    return this.baseDefense + aBonus;
+    return this.baseDefense + this.armorBonus('armor') + this.offhandBonus('armor');
+  }
+
+  get speedBonus() {
+    return this.weaponBonus('speed') + this.offhandBonus('speed') + this.armorBonus('speed');
+  }
+
+  weaponBonus(field) {
+    return this.weapon ? (this.weapon[field] || 0) : 0;
+  }
+
+  offhandBonus(field) {
+    return this.offhand ? (this.offhand[field] || 0) : 0;
+  }
+
+  armorBonus(field) {
+    return this.armor ? (this.armor[field] || 0) : 0;
+  }
+
+  canFireRanged() {
+    const item = this.offhand;
+    return isRangedItem(item)
+      && this.rangedCooldown === 0
+      && (this.debugMode || this.stamina >= (item.stamina || 0));
+  }
+
+  fireRanged() {
+    if (!this.canFireRanged()) return null;
+    const item = this.offhand;
+    if (!this.debugMode) this.stamina = Math.max(0, this.stamina - (item.stamina || 0));
+    this.rangedCooldown = Math.max(1, item.rate || 1);
+    return item;
+  }
+
+  isEquipped(item) {
+    const slot = getEquipmentSlot(item);
+    return !!slot && this[slot]?.code === item.code;
   }
 
   get body() {
@@ -104,8 +138,14 @@ export class Saric {
   }
 
   equip(item) {
-    if (item.type === ITEM_TYPES.WEAPON) this.weapon = item;
-    else if (item.type === ITEM_TYPES.ARMOR) this.armor = item;
+    const slot = getEquipmentSlot(item);
+    if (!slot) return false;
+    if (this[slot]?.code === item.code) {
+      this[slot] = null;
+    } else {
+      this[slot] = item;
+    }
+    return true;
   }
 
   // A potion's stamina figure is signed: negative restores fatigue, which is
@@ -157,6 +197,7 @@ export class Saric {
     if (this.invuln > 0) this.invuln--;
     if (this.terrainCooldown > 0) this.terrainCooldown--;
     if (this.cooldown > 0) this.cooldown--;
+    if (this.rangedCooldown > 0) this.rangedCooldown--;
     if (this.swing > 0) this.swing--;
     if (this.dead) return;
 
@@ -195,9 +236,11 @@ export class Saric {
       if (dx < 0) this.dir = DIR_LEFT;
       else if (dx > 0) this.dir = DIR_RIGHT;
 
+      const walkSpeed = WALK_SPEED + this.speedBonus;
+      const runSpeed = RUN_SPEED + this.speedBonus;
       const speed = this.debugMode
-        ? WALK_SPEED * (this.running ? 3 : 2)
-        : (this.running ? RUN_SPEED : WALK_SPEED);
+        ? walkSpeed * (this.running ? 4 : 2)
+        : (this.running ? runSpeed : walkSpeed);
       const len = Math.hypot(dx, dy) || 1;
       this.step(world, screen, (dx / len) * speed, (dy / len) * speed);
       this.walkTimer++;
