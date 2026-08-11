@@ -71,6 +71,74 @@ canvas#game-canvas {
 }
 
 /* UI Overlays & Modals */
+#overlay-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+}
+
+#overlay-screen.hidden {
+  display: none !important;
+}
+
+.title-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  background: #000;
+  color: #111;
+}
+
+.title-screen #overlay-logo {
+  width: 354px;
+  max-width: 80%;
+  margin: 0 0 16px;
+  image-rendering: pixelated;
+}
+
+.title-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(230px, 70%);
+}
+
+.title-btn {
+  min-height: 58px;
+  width: 100%;
+  border: 2px solid #f2f2f2;
+  border-right-color: #777;
+  border-bottom-color: #777;
+  background: #c9c9c9;
+  color: #111;
+  font: 16px/1.1 Georgia, 'Times New Roman', serif;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px #a5a5a5;
+}
+
+.title-btn:not(:disabled):hover,
+.title-btn:not(:disabled):focus-visible {
+  background: #e1e1e1;
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.title-btn:disabled {
+  cursor: not-allowed;
+  color: #333;
+}
+
+.title-status {
+  position: absolute;
+  bottom: 12px;
+  max-width: 80%;
+  color: #d8d8d8;
+  font: 12px/1.3 monospace;
+  text-align: center;
+}
+
 .ui-overlay {
   position: absolute;
   top: 0;
@@ -457,13 +525,6 @@ canvas#game-canvas {
 .shop-greeting {
   color: var(--accent-color);
   font-style: italic;
-  margin-bottom: 1rem;
-}
-
-#overlay-logo {
-  image-rendering: pixelated;
-  width: 354px;
-  max-width: 80%;
   margin-bottom: 1rem;
 }
 

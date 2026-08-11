@@ -381,6 +381,7 @@ async function boot() {
   try {
     assets = await loadAssets();
   } catch (err) {
+    message.hidden = false;
     message.textContent = `Could not load assets: ${err.message}`;
     return;
   }
@@ -389,21 +390,21 @@ async function boot() {
   const game = new Game(assets, canvas);
   window.mantra = game; // debug handle
   game.draw();
-  message.textContent = 'Mantra: 256 screens, 586 creatures, and the five Mantras to find.';
+  message.hidden = true;
   button.disabled = false;
 
   const story = document.getElementById('story-screen');
   const storyButton = document.getElementById('story-btn');
 
-  button.addEventListener('click', async () => {
+  button.addEventListener('click', () => {
     overlay.classList.add('hidden');
     story.classList.remove('hidden');
-    await game.audio.start();
-    game.audio.playMusic(game.world.musicIndexAt(game.screen));
   });
 
-  storyButton.addEventListener('click', () => {
+  storyButton.addEventListener('click', async () => {
     story.classList.add('hidden');
+    await game.audio.start();
+    await game.audio.playMusic(game.world.musicIndexAt(game.screen));
     run(game);
   });
 }

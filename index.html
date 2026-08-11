@@ -16,10 +16,15 @@
   <main id="game-container">
     <canvas id="game-canvas" width="512" height="344"></canvas>
 
-    <div id="overlay-screen">
+    <div id="overlay-screen" class="title-screen">
       <img id="overlay-logo" src="assets/ui/mantra.png" alt="MANTRA">
-      <p id="overlay-msg">Click Start Game to launch Mantra Web (Full Game)</p>
-      <button id="start-btn" class="btn">START GAME</button>
+      <p id="overlay-msg" class="title-status" aria-live="polite"></p>
+      <div class="title-menu" role="menu" aria-label="Main menu">
+        <button id="start-btn" class="title-btn" type="button">New</button>
+        <button class="title-btn" type="button" disabled>Open</button>
+        <button class="title-btn" type="button" disabled>Save</button>
+        <button class="title-btn" type="button" disabled>Resume</button>
+      </div>
     </div>
 
     <div id="story-screen" class="ui-overlay hidden">
