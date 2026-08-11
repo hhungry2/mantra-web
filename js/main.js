@@ -105,6 +105,7 @@ class Game {
     this.victory = false;
     this.player.dead = false;
     this.player.invuln = 0;
+    this.player.terrainCooldown = 0;
     this.player.swing = 0;
     this.player.cooldown = 0;
 
@@ -271,11 +272,15 @@ class Game {
 
     this.checkScreenTransitions();
 
-    // Standing in the water or the fire hurts; the tile's special field says
-    // how much.
-    const harm = this.world.damageAt(this.screen, player.x, player.y);
-    if (harm > 0 && this.frame % 12 === 0) {
-      if (player.hurt(harm, player.x, player.y + 8)) {
+    // Map special values are signed: negative values are healing springs,
+    // positive values are hazards. The original applies one effect every 30
+    // frames while Saric overlaps a qualifying tile.
+    const terrainEffect = this.world.terrainEffectAt(this.screen, player.body);
+    if (terrainEffect !== null && player.terrainCooldown === 0) {
+      player.terrainCooldown = 30;
+      if (terrainEffect < 0) {
+        player.recover(-terrainEffect);
+      } else if (player.terrainHurt(terrainEffect)) {
         this.audio.play(player.dead ? 'die' : 'hurt');
       }
     }
