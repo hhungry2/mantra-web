@@ -2,10 +2,23 @@
 
 import {
   TILE, SCREEN_COLS, SCREEN_ROWS, VIEW_W, VIEW_H, HUD_H,
+  DIR_LEFT, DIR_RIGHT, DIR_DOWN, DIR_UP,
 } from './config.js';
 
 const SPRITE = 32;
 const SPRITE_OFFSET_Y = -22;
+
+// The sword hangs a whole tile out along the facing, off the same top-left
+// the body is drawn from. This is drawSword() in the original's Saric.c,
+// where SWORD_OFFSET is 16 and the four cases are left -16, right +16,
+// down +16 and up -16 - the same 16 the sword's hit rect uses.
+const SWORD_REACH = 16;
+const SWORD_OFFSET = {
+  [DIR_LEFT]: { x: -SWORD_REACH, y: 0 },
+  [DIR_RIGHT]: { x: SWORD_REACH, y: 0 },
+  [DIR_DOWN]: { x: 0, y: SWORD_REACH },
+  [DIR_UP]: { x: 0, y: -SWORD_REACH },
+};
 
 export class Renderer {
   constructor(canvas, assets) {
@@ -79,10 +92,15 @@ export class Renderer {
       drawables.push({
         y: player.y,
         draw: () => {
-          this.drawSprite(frames.body, player.x - SPRITE / 2, player.y + SPRITE_OFFSET_Y);
+          // drawSaric() lays the sword down before the body, so the hand that
+          // holds it stays in front of the blade.
+          const x = player.x - SPRITE / 2;
+          const y = player.y + SPRITE_OFFSET_Y;
           if (frames.sword !== null) {
-            this.drawSprite(frames.sword, player.x - SPRITE / 2, player.y + SPRITE_OFFSET_Y);
+            const offset = SWORD_OFFSET[player.dir];
+            this.drawSprite(frames.sword, x + offset.x, y + offset.y);
           }
+          this.drawSprite(frames.body, x, y);
         },
       });
     }
@@ -122,6 +140,10 @@ export class Renderer {
     meter(ctx, 145, top + 7, 85, 10, player.stamina / 100, '#48cae4');
     meter(ctx, 262, top + 7, 50, 10, player.xp / player.nextXp, '#a855f7');
 
+    meterValue(ctx, 28, top + 7, 85, 10, Math.ceil(player.hp));
+    meterValue(ctx, 145, top + 7, 85, 10, Math.ceil(player.stamina));
+
+    ctx.font = '10px monospace';
     ctx.fillStyle = '#c5c6c7';
     ctx.fillText(`LV${player.level}`, 320, top + 12);
     ctx.fillStyle = '#ffb703';
@@ -174,4 +196,15 @@ function meter(ctx, x, y, w, h, value, colour) {
   ctx.fillRect(x + 1, y + 1, Math.max(0, Math.round((w - 2) * value)), h - 2);
   ctx.strokeStyle = '#45a29e';
   ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+}
+
+// The current number, centred on top of its meter.
+function meterValue(ctx, x, y, w, h, value) {
+  ctx.textAlign = 'center';
+  ctx.font = '9px monospace';
+  ctx.fillStyle = '#000';
+  ctx.fillText(String(value), x + w / 2 + 1, y + h / 2 + 1);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(String(value), x + w / 2, y + h / 2);
+  ctx.textAlign = 'left';
 }

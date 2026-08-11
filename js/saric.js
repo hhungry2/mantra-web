@@ -61,6 +61,7 @@ export class Saric {
     this.swing = 0;
     this.cooldown = 0;
     this.invuln = 0;
+    this.terrainCooldown = 0;
     this.knock = null;
     this.dead = false;
   }
@@ -126,6 +127,18 @@ export class Saric {
     else this.inventory.push(item);
   }
 
+  recover(amount) {
+    if (this.dead) return;
+    this.hp = Math.min(this.hpMax, this.hp + Math.max(0, amount));
+  }
+
+  terrainHurt(amount) {
+    if (this.dead) return false;
+    this.hp = Math.max(0, this.hp - Math.max(0, amount));
+    if (this.hp === 0) this.dead = true;
+    return true;
+  }
+
   hurt(rawAmount, fromX, fromY) {
     if (this.invuln > 0 || this.dead) return false;
     const actualDamage = Math.max(1, rawAmount - this.defense);
@@ -141,15 +154,18 @@ export class Saric {
 
   update(input, world, screen) {
     if (this.invuln > 0) this.invuln--;
+    if (this.terrainCooldown > 0) this.terrainCooldown--;
     if (this.cooldown > 0) this.cooldown--;
     if (this.swing > 0) this.swing--;
     if (this.dead) return;
 
-    if (input.attack && this.swing === 0 && this.cooldown === 0) {
+    // Holding space keeps the sword drawn for as long as the key is down,
+    // instead of a single edge-triggered burst; the cooldown only gates the
+    // "swing" sound/hit so it doesn't refire every frame of the hold.
+    if (input.attack) {
+      this.swungThisFrame = this.swing === 0 && this.cooldown === 0;
+      if (this.swungThisFrame) this.cooldown = SWING_COOLDOWN;
       this.swing = SWING_FRAMES;
-      this.cooldown = SWING_FRAMES + SWING_COOLDOWN;
-      input.consumeAttack();
-      this.swungThisFrame = true;
     } else {
       this.swungThisFrame = false;
     }
@@ -161,7 +177,7 @@ export class Saric {
     if (input.up) dy -= 1;
     if (input.down) dy += 1;
 
-    this.moving = (dx !== 0 || dy !== 0) && this.swing === 0;
+    this.moving = dx !== 0 || dy !== 0;
     this.running = this.moving && input.run && this.stamina > STAMINA_FLOOR;
 
     if (this.running) {

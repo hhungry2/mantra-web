@@ -30,12 +30,7 @@ export class TouchControls {
     this.bindTouch('btn-left', 'left');
     this.bindTouch('btn-right', 'right');
     this.bindTouch('btn-run', 'run');
-
-    const attackBtn = document.getElementById('btn-attack');
-    attackBtn.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      this.input.attack = true;
-    });
+    this.bindTouch('btn-attack', 'attack');
 
     const invBtn = document.getElementById('btn-inv');
     invBtn.addEventListener('touchstart', (e) => {

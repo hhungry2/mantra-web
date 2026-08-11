@@ -3,6 +3,34 @@
 import { ITEM_TYPES, getItem } from './items.js';
 import { SaveManager } from './save.js';
 
+// Items carry no price of their own - StoreData only prices what a shop
+// sells. To let the player sell anything, price it off whichever shop (if
+// any) already stocks it, and fall back to a stat-based guess for items no
+// store carries. Selling always pays half of whatever that comes out to.
+function baseValue(game, item) {
+  for (const store of game.stores) {
+    const entry = store.stock.find((s) => s.code === item.code);
+    if (entry) return entry.price;
+  }
+  if (item.type === ITEM_TYPES.WEAPON) return 20 + (item.damage || 0) * 5;
+  if (item.type === ITEM_TYPES.ARMOR) return 20 + (item.armor || 0) * 5;
+  if (item.type === ITEM_TYPES.CONSUMABLE) return 10 + (item.heal || 0) * 2;
+  return 5;
+}
+
+function sellPrice(game, item) {
+  return Math.max(1, Math.floor(baseValue(game, item) / 2));
+}
+
+// isSpecialItem (64) turns out to be set on ordinary consumables too (e.g.
+// the Healing Potion), so it can't tell quest items apart from goods; the
+// Key and the five Mantras are named by code instead. Letters aren't goods
+// either.
+const QUEST_ITEM_CODES = new Set([150, 100, 101, 102, 103, 104]);
+function isSellable(item) {
+  return item.type !== ITEM_TYPES.MESSAGE && !QUEST_ITEM_CODES.has(item.code);
+}
+
 // Items carry the icon id their artwork sits under in icons32.png; a few of
 // them (the Rapier, for one) have no icon in the file, so this can come back
 // empty and the row just goes without.
@@ -95,7 +123,10 @@ export class UI {
         <div class="modal-body">
           <div class="shop-list-container">
             <p id="shop-greeting" class="shop-greeting"></p>
+            <h3>For Sale</h3>
             <div id="shop-items-list" class="item-list"></div>
+            <h3>Your Items</h3>
+            <div id="shop-sell-list" class="item-list"></div>
           </div>
         </div>
       </div>
@@ -307,6 +338,46 @@ export class UI {
           this.game.audio.play('hit');
           this.renderShopItems();
         }
+      });
+      listEl.appendChild(row);
+    });
+
+    this.renderSellList();
+  }
+
+  renderSellList() {
+    const p = this.game.player;
+    const listEl = document.getElementById('shop-sell-list');
+    listEl.innerHTML = '';
+
+    const sellable = p.inventory.filter((item) => isSellable(item)
+      && p.weapon?.code !== item.code && p.armor?.code !== item.code);
+    if (sellable.length === 0) {
+      listEl.innerHTML = '<div class="empty-msg">Nothing to sell.</div>';
+      return;
+    }
+
+    sellable.forEach((item) => {
+      const price = sellPrice(this.game, item);
+      const row = document.createElement('div');
+      row.className = 'item-row';
+      row.innerHTML = `
+        <div class="item-icon" style="${iconStyle(item, this.gfx)}"></div>
+        <div class="item-text">
+          <div class="item-name">${item.name} - <span class="gold-text">${price} Gold</span></div>
+          <div class="item-desc">${item.desc || ''}</div>
+        </div>
+        <div class="item-actions">
+          <button class="action-btn sell-btn">Sell</button>
+        </div>
+      `;
+      row.querySelector('.sell-btn').addEventListener('click', () => {
+        const idx = p.inventory.indexOf(item);
+        if (idx < 0) return;
+        p.inventory.splice(idx, 1);
+        p.gold += price;
+        this.game.audio.play('hit');
+        this.renderShopItems();
       });
       listEl.appendChild(row);
     });

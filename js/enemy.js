@@ -41,7 +41,10 @@ export class Enemy {
     // Signposts, shopkeepers and townspeople are enemies with no damage.
     this.damage = record.damage;
     this.xp = record.xp;
-    this.speed = Math.max(0.4, Math.abs(record.speed || 1) * SPEED_SCALE);
+    // speed:0 in the data means "stands still" (signposts, the wounded man at
+    // the start) - `|| 1` would treat that explicit zero as "unset" and the
+    // 0.4 floor would make it creep anyway, so zero has to bypass both.
+    this.speed = record.speed === 0 ? 0 : Math.max(0.4, Math.abs(record.speed || 1) * SPEED_SCALE);
     this.ai = record.ai;
     this.range = record.range;
     this.rate = record.rate;

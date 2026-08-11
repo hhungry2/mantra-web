@@ -26,6 +26,13 @@ const READ_RANGE = 40;
 // Fire, Earth, Water, Air, Force.
 const MANTRA_CODES = [100, 101, 102, 103, 104];
 
+// Grid (7,5). Five separate signposts (text.json #17,52,55,67,68) all name
+// this screen as Castle Blednock, and its two dungeon doors match the
+// "great labyrinth" / "Balther's maze" the labyrinth signs describe
+// (text.json #45, #48) - there's no explicit "Castle Blednock" tag in the
+// extracted data, so this is triangulated from the signpost directions.
+const CASTLE_BLEDNOCK_SCREEN = 87;
+
 class Game {
   constructor(assets, canvas) {
     this.world = new World(assets);
@@ -50,6 +57,7 @@ class Game {
     this.screenIndex = START_SCREEN;
     this.projectiles = [];
     this.victory = false;
+    this.mantrasReady = false;
     this.doorLatch = null;
     this.enter(START_SCREEN);
 
@@ -180,6 +188,11 @@ class Game {
 
   // Chests and the things lying about are enemies flagged canBeHeld: walking
   // into one hands over whatever deadItem names.
+  //
+  // A few of them are people rather than props - the dying man on the first
+  // screen presses his dagger on you - and those carry a message as well. It
+  // is their one chance to speak, since taking the item is what removes them,
+  // so say it here rather than leaving it to the read key.
   collect(enemy) {
     enemy.dead = true;
     this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
@@ -189,6 +202,9 @@ class Game {
     this.audio.play('item');
     this.hudNote = `FOUND ${item.name.toUpperCase()}`;
     this.noteUntil = this.frame + 50;
+
+    const text = enemy.message > 0 ? this.textMsgs[enemy.message - 1] : null;
+    if (text) this.ui.showDialog('', text);
   }
 
   // A slain enemy stays slain, hands over its experience, and leaves behind
@@ -339,9 +355,15 @@ class Game {
     }
     this.projectiles = this.projectiles.filter((p) => !p.dead);
 
-    // The Ambassador's letters set the quest: find the five Mantras. That is
-    // the one ending the data actually spells out.
-    if (!this.victory && MANTRA_CODES.every((c) => player.inventory.some((i) => i.code === c))) {
+    // The Ambassador's letters set the quest: find the five Mantras and bring
+    // them to Castle Blednock.
+    const hasAllMantras = MANTRA_CODES.every((c) => player.inventory.some((i) => i.code === c));
+    if (!this.victory && hasAllMantras && !this.mantrasReady) {
+      this.mantrasReady = true;
+      this.hudNote = 'The five Mantras are yours. Bring them to Castle Blednock!';
+      this.noteUntil = this.frame + 150;
+    }
+    if (!this.victory && hasAllMantras && this.screenIndex === CASTLE_BLEDNOCK_SCREEN) {
       this.victory = true;
       this.audio.play('fanfare');
     }
@@ -363,7 +385,7 @@ class Game {
     if (this.player.dead) {
       r.drawEndCard(this.renderer.lose, 'Press V to load a saved game');
     } else if (this.victory) {
-      r.drawEndCard(this.renderer.win, 'Bring them to Castle Blednock');
+      r.drawEndCard(this.renderer.win, 'You brought the five Mantras to Castle Blednock');
     }
   }
 }

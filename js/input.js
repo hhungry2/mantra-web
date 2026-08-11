@@ -1,4 +1,5 @@
-// Keyboard state. Attack is edge-triggered so holding space swings once.
+// Keyboard state. Attack tracks whether space is currently held, so the sword
+// stays drawn for the duration of the hold.
 
 const KEY_MAP = {
   ArrowLeft: 'left', KeyA: 'left',
@@ -46,7 +47,8 @@ export class Input {
     });
   }
 
-  // A swing consumes the press; the key must be released and hit again.
+  // Used to swallow the space press that dismisses a dialog box, so it does
+  // not also draw the sword.
   consumeAttack() {
     this.attack = false;
   }
