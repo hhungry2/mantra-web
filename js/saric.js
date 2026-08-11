@@ -62,6 +62,7 @@ export class Saric {
     this.cooldown = 0;
     this.invuln = 0;
     this.terrainCooldown = 0;
+    this.debugMode = false;
     this.knock = null;
     this.dead = false;
   }
@@ -133,14 +134,14 @@ export class Saric {
   }
 
   terrainHurt(amount) {
-    if (this.dead) return false;
+    if (this.debugMode || this.dead) return false;
     this.hp = Math.max(0, this.hp - Math.max(0, amount));
     if (this.hp === 0) this.dead = true;
     return true;
   }
 
   hurt(rawAmount, fromX, fromY) {
-    if (this.invuln > 0 || this.dead) return false;
+    if (this.debugMode || this.invuln > 0 || this.dead) return false;
     const actualDamage = Math.max(1, rawAmount - this.defense);
     this.hp = Math.max(0, this.hp - actualDamage);
     this.invuln = INVULN_FRAMES;
@@ -180,7 +181,9 @@ export class Saric {
     this.moving = dx !== 0 || dy !== 0;
     this.running = this.moving && input.run && this.stamina > STAMINA_FLOOR;
 
-    if (this.running) {
+    if (this.debugMode) {
+      this.stamina = STAMINA_MAX;
+    } else if (this.running) {
       this.stamina = Math.max(0, this.stamina - STAMINA_DRAIN);
     } else {
       this.stamina = Math.min(STAMINA_MAX, this.stamina + STAMINA_REGEN);

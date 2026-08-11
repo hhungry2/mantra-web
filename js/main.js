@@ -297,7 +297,7 @@ class Game {
       player.terrainCooldown = 30;
       if (terrainEffect < 0) {
         player.hp = Math.min(player.hpMax, player.hp - terrainEffect);
-      } else if (terrainEffect > 0) {
+      } else if (terrainEffect > 0 && !player.debugMode) {
         player.hp = Math.max(0, player.hp - terrainEffect);
         if (player.hp === 0) player.dead = true;
         this.audio.play(player.dead ? 'die' : 'hurt');
@@ -396,6 +396,7 @@ async function boot() {
   const message = document.getElementById('overlay-msg');
   const button = document.getElementById('start-btn');
   const openButton = document.getElementById('open-btn');
+  const debugToggle = document.getElementById('debug-mode');
 
   message.textContent = 'Loading assets...';
   button.disabled = true;
@@ -429,12 +430,23 @@ async function boot() {
   };
   game.startGame = startGame;
 
+  const applyDebugMode = () => {
+    game.debugMode = debugToggle.checked;
+    game.player.debugMode = debugToggle.checked;
+    if (debugToggle.checked) {
+      game.player.hp = game.player.hpMax;
+      game.player.stamina = 100;
+    }
+  };
+
   button.addEventListener('click', () => {
+    applyDebugMode();
     overlay.classList.add('hidden');
     story.classList.remove('hidden');
   });
 
   openButton.addEventListener('click', () => {
+    applyDebugMode();
     overlay.classList.add('hidden');
     game.ui.toggleSave(true);
   });
