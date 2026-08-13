@@ -13,7 +13,7 @@ import { BOSS_NAMES } from './enemy_ai.js';
 import { overlaps } from './collision.js';
 import { Audio } from './audio.js';
 import { UI } from './ui.js';
-import { initItems, getItem } from './items.js';
+import { initItems, getItem, FLAG } from './items.js';
 import { TouchControls } from './touch.js';
 import { t, getLang, setLang, localizeBossName, applyDocumentStrings } from './i18n.js';
 
@@ -202,8 +202,9 @@ class Game {
     this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
     const item = getItem(enemy.drop);
     if (!item) return;
+    const isMoney = !!(item.attributes & FLAG.MONEY);
     this.player.addItem(item);
-    this.audio.play('item');
+    this.audio.play(isMoney ? 'money' : 'item');
     this.hudNote = t('FOUND {name}', { name: item.name.toUpperCase() });
     this.noteUntil = this.frame + 50;
 
@@ -219,8 +220,9 @@ class Game {
 
     const drop = getItem(enemy.drop);
     if (drop) {
+      const dropIsMoney = !!(drop.attributes & FLAG.MONEY);
       this.player.addItem(drop);
-      this.audio.play('item');
+      this.audio.play(dropIsMoney ? 'money' : 'item');
       this.hudNote = t('FOUND {name}', { name: drop.name.toUpperCase() });
       this.noteUntil = this.frame + 50;
     }
@@ -252,7 +254,8 @@ class Game {
 
     const door = this.world.doorAt(this.screen, player.x, player.y);
     if (door && door.screen !== this.screenIndex) {
-      this.audio.play('door');
+      // The original C source plays no effect when warping through a door,
+      // so the transition is silent here too.
       this.enter(door.screen, door.tileX * TILE + TILE / 2, door.tileY * TILE + TILE / 2);
       this.doorLatch = {
         screen: door.screen,

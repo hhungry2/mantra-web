@@ -6,15 +6,18 @@
 import { ModPlayer } from './mod/player.js';
 
 // Nothing in the data files records which effect is which sound, so these
-// names are read off their lengths: the short ones are blows, the long ones
-// are the death and the fanfare. Each of the eight is used once.
+// names are read off the call sites in the original C source:
+//  128 sword swing (Input.c), 129 Saric hurt (EnemyCollision.c),
+//  130 enemy hit (Input.c/EnemyCollision.c), 131 enemy death (Enemies.c),
+//  133 item pickup (EnemyCollision.c), 137 money pickup (EnemyCollision.c),
+//  134 key use (Saric.c), 138 victory fanfare (Utils.c).
 const SFX_FILES = {
   sword: 'assets/sfx/sfx_128.wav',   // 0.11s
-  hurt: 'assets/sfx/sfx_133.wav',    // 0.12s
-  hit: 'assets/sfx/sfx_129.wav',     // 0.16s
-  kill: 'assets/sfx/sfx_130.wav',    // 0.21s
-  door: 'assets/sfx/sfx_137.wav',    // 0.37s
-  item: 'assets/sfx/sfx_131.wav',    // 0.54s
+  hurt: 'assets/sfx/sfx_129.wav',    // 0.16s
+  hit: 'assets/sfx/sfx_130.wav',     // 0.21s
+  kill: 'assets/sfx/sfx_131.wav',    // 0.54s
+  item: 'assets/sfx/sfx_133.wav',    // 0.12s
+  money: 'assets/sfx/sfx_137.wav',   // 0.37s
   die: 'assets/sfx/sfx_134.wav',     // 0.86s
   fanfare: 'assets/sfx/sfx_138.wav', // 0.85s
 };
