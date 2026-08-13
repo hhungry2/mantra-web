@@ -27,6 +27,10 @@ const READ_RANGE = 40;
 // Fire, Earth, Water, Air, Force.
 const MANTRA_CODES = [100, 101, 102, 103, 104];
 
+// Bronze and Copper Pennies are pocketed on the spot rather than left on the
+// ground as a visible drop.
+const POCKETED_COINS = new Set([200, 201]);
+
 // Grid (7,5). Five separate signposts (text.json #17,52,55,67,68) all name
 // this screen as Castle Blednock, and its two dungeon doors match the
 // "great labyrinth" / "Balther's maze" the labyrinth signs describe
@@ -223,7 +227,12 @@ class Game {
     const leveledUp = this.player.addXp(enemy.xp);
     // Door enemies vanish outright when they give way - killCurrentEnemy
     // returns early for them in the original - so no body is left behind.
-    if (enemy.ai !== AI.DOOR) this.corpses.push(new Corpse(enemy, getItem(enemy.drop)));
+    // Copper pennies are pocketed on the spot too, without a visible drop.
+    if (enemy.ai !== AI.DOOR) {
+      const drop = getItem(enemy.drop);
+      if (drop && POCKETED_COINS.has(drop.code)) this.giveDrop(drop);
+      else this.corpses.push(new Corpse(enemy, drop));
+    }
 
     if (enemy.boss) {
       const bossName = localizeBossName(BOSS_NAMES[enemy.ai] || t('BOSS'), enemy.ai);
@@ -242,6 +251,10 @@ class Game {
     corpse.dead = true;
     const item = corpse.drop;
     if (!item) return;
+    this.giveDrop(item);
+  }
+
+  giveDrop(item) {
     const isMoney = !!(item.attributes & FLAG.MONEY);
     this.player.addItem(item);
     this.audio.play(isMoney ? 'money' : 'item');
