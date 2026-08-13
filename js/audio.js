@@ -18,6 +18,7 @@ const SFX_FILES = {
   kill: 'assets/sfx/sfx_131.wav',    // 0.54s
   item: 'assets/sfx/sfx_133.wav',    // 0.12s
   money: 'assets/sfx/sfx_137.wav',   // 0.37s
+  key: 'assets/sfx/sfx_134.wav',     // 0.86s (keySpecialItem)
   die: 'assets/sfx/sfx_134.wav',     // 0.86s
   fanfare: 'assets/sfx/sfx_138.wav', // 0.85s
 };

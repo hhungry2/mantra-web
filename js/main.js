@@ -8,9 +8,9 @@ import { World, MOD } from './map.js';
 import { Renderer } from './renderer.js';
 import { Input } from './input.js';
 import { Saric, DIR_VECTORS } from './saric.js';
-import { spawnScreen, makeMover, EnemyProjectile, PlayerProjectile, Corpse } from './enemy.js';
+import { spawnScreen, makeMover, EnemyProjectile, PlayerProjectile, Corpse, ATTR } from './enemy.js';
 import { BOSS_NAMES, AI } from './enemy_ai.js';
-import { overlaps } from './collision.js';
+import { overlaps, box } from './collision.js';
 import { Audio } from './audio.js';
 import { UI } from './ui.js';
 import { initItems, getItem, FLAG } from './items.js';
@@ -109,6 +109,15 @@ class Game {
     this.projectiles = [];
     this.corpses = [];
     this.playerProjectiles = [];
+    // Locked doors keep their bodies on the movement collision layer until
+    // a key opens them. Bodies are captured once and reused by reference.
+    this.world.closedDoors = [];
+    for (const e of this.enemies) {
+      if (e.ai !== AI.DOOR) continue;
+      const body = e.body;
+      e.doorBlock = body;
+      this.world.closedDoors.push(body);
+    }
     this.move = makeMover(this.world, this.screen);
 
     if (this.audio.ctx) this.audio.playMusic(this.world.musicIndexAt(this.screen));
@@ -264,6 +273,61 @@ class Game {
     this.noteUntil = this.frame + 50;
   }
 
+  // Off-hand special items do their thing on the F key. The Key unlocks a
+  // doorEnemy in front of Saric; the Force Mantra hurts every enemy on the
+  // screen. This mirrors runItemSpecialRoutine in the original's Saric.c.
+  useSpecialRoutine(item) {
+    if (!item || !(item.attributes & FLAG.SPECIAL_ROUTINE)) return;
+    if (this.player.rangedCooldown > 0) return;
+    this.player.rangedCooldown = Math.max(1, item.rate || 1);
+    if (!this.player.debugMode) {
+      this.player.stamina = Math.max(0, this.player.stamina - (item.stamina || 0));
+    }
+    if (item.code === 150) this.keyUse();
+    else if (item.code === 104) this.powerMantra();
+  }
+
+  // keySpecialItem: the door one tile out along the facing - the same
+  // SWORD_OFFSET rect the sword uses - gives way, one Key is spent, and the
+  // original plays sound 134.
+  keyUse() {
+    const player = this.player;
+    const [dx, dy] = DIR_VECTORS[player.dir];
+    const reach = 16;
+    const hit = box(player.x + dx * reach, player.y + dy * reach, 20, 16);
+    const door = this.enemies.find((e) => !e.dead && e.ai === AI.DOOR && overlaps(hit, e.body));
+    if (!door) {
+      this.hudNote = t('NOTHING HERE');
+      this.noteUntil = this.frame + 25;
+      return;
+    }
+    door.dead = true;
+    this.audio.play('key');
+    this.defeatedMasks[this.screenIndex] |= (1 << door.slotIndex);
+    this.world.closedDoors = this.world.closedDoors.filter((b) => b !== door.doorBlock);
+    const keyIdx = player.inventory.findIndex((i) => i.code === 150);
+    if (keyIdx >= 0) player.inventory.splice(keyIdx, 1);
+    if (player.offhand?.code === 150 && !player.inventory.some((i) => i.code === 150)) {
+      player.offhand = null;
+    }
+    this.hudNote = t('UNLOCKED!');
+    this.noteUntil = this.frame + 50;
+  }
+
+  // powerMantraItem: the Force Mantra wounds every killable enemy on the
+  // screen by 20, sparing the door guards, corpses and the final boss. The
+  // original only plays the off-hand trigger sound (128) here.
+  powerMantra() {
+    const spared = new Set([AI.NONE, AI.DYING, AI.DOOR, AI.FINAL_BOSS]);
+    for (const enemy of this.enemies) {
+      if (enemy.dead || spared.has(enemy.ai)) continue;
+      if (!(enemy.attributes & ATTR.IS_ENEMY) || !(enemy.attributes & ATTR.KILLABLE)) continue;
+      const killed = enemy.hurt(20, this.player.x, this.player.y);
+      if (killed) this.defeat(enemy);
+    }
+    this.audio.play('sword');
+  }
+
   checkScreenTransitions() {
     const player = this.player;
     const currIdx = this.screenIndex;
@@ -333,6 +397,10 @@ class Game {
           item.fires,
         ));
         this.audio.play('sword');
+      } else {
+        // Off-hand items without a missile (the Key, the Mantras) carry a
+        // special routine instead - the original's runItemSpecialRoutine.
+        this.useSpecialRoutine(player.offhand);
       }
     }
 
@@ -377,7 +445,8 @@ class Game {
         continue;
       }
 
-      if (sword && enemy.killable && enemy.flash === 0 && overlaps(sword, enemy.body)) {
+      // Locked doors cannot be cut or shot open; only a key opens them.
+      if (sword && enemy.killable && enemy.ai !== AI.DOOR && enemy.flash === 0 && overlaps(sword, enemy.body)) {
         const killed = enemy.hurt(player.attack, player.x, player.y);
         this.audio.play(killed ? 'kill' : 'hit');
         if (killed) this.defeat(enemy);
@@ -416,7 +485,7 @@ class Game {
       proj.update(this.world, this.screen);
       if (proj.dead) continue;
       for (const enemy of this.enemies) {
-        if (enemy.dead || !enemy.killable || !overlaps(proj.body, enemy.body)) continue;
+        if (enemy.dead || !enemy.killable || enemy.ai === AI.DOOR || !overlaps(proj.body, enemy.body)) continue;
         const killed = enemy.hurt(proj.damage, player.x, player.y);
         this.audio.play(killed ? 'kill' : 'hit');
         if (killed) this.defeat(enemy);

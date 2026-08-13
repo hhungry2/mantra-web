@@ -83,6 +83,7 @@ export default {
     '{name} DEFEATED': '{name} を撃破!',
     'BOSS': 'ボス',
     'LEVEL UP!': 'レベルアップ!',
+    'UNLOCKED!': '鍵が開いた!',
     'The five Mantras are yours. Bring them to Castle Blednock!': '五つのマントラが揃った。キャッスル・ブレドノックへ届けよ!',
     'SCREEN {n} ({x},{y})': '画面 {n} ({x},{y})',
 

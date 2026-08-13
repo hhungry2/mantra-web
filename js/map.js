@@ -5,6 +5,7 @@
 // destination packed into the tile's `special` field.
 
 import { TILE, SCREEN_COLS, VIEW_W, VIEW_H, WORLD_COLS, WORLD_ROWS } from './config.js';
+import { overlaps } from './collision.js';
 
 const SAMPLE_STEP = 4;
 
@@ -25,6 +26,8 @@ export class World {
     // map.json stores screens positionally, so hand each one its index.
     this.screens.forEach((screen, index) => { screen.index = index; });
     this.tileIndex = assets.tileIndex;
+    // Locked doors (doorEnemy guards) block Saric until a key opens them.
+    this.closedDoors = [];
   }
 
   screen(index) {
@@ -83,6 +86,10 @@ export class World {
         if (px >= right) break;
       }
       if (py >= bottom) break;
+    }
+    // A closed locked door is solid too; it stays closed until the key is used.
+    for (const door of this.closedDoors) {
+      if (overlaps(b, door)) return true;
     }
     return false;
   }
