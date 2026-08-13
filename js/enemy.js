@@ -210,15 +210,17 @@ export class Corpse {
     return box(this.x, this.y, BODY_W, BODY_H);
   }
 
-  // dyingMonster in EnemyUpdate.c: for the first twelve frames the facing
-  // walks 1..4 (1 + legCounter/4) while legState alternates 0/2, then it
-  // settles on facing 4 with legState 0 when a drop waits, 1 otherwise.
+  // dyingMonster in EnemyUpdate.c: for the first eleven frames the facing
+  // walks 1..3 (1 + legCounter/4) while legState is overwritten to 1, then it
+  // settles on facing 4 with legState 0 while a drop waits, 1 once the drop
+  // is gone. Picking the drop up does not remove the body; it only clears
+  // the drop, and the body fades when legCounter reaches 250.
   get frame() {
     let facing;
     let legState;
     if (this.legCounter < 12) {
       facing = 1 + Math.floor(this.legCounter / 4);
-      legState = this.legCounter & 2;
+      legState = 1;
     } else {
       facing = 4;
       legState = this.drop ? 0 : 1;
@@ -229,6 +231,9 @@ export class Corpse {
   update() {
     this.legCounter++;
     if (this.legCounter >= 250) {
+      // The original keeps a body that still has a drop by resetting its
+      // counter, so a missed drop stays put; one with nothing left to give
+      // fades away.
       if (this.drop) this.legCounter = 16;
       else this.dead = true;
     }

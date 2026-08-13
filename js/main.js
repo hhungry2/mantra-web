@@ -247,9 +247,11 @@ class Game {
 
   // Picking a drop off a corpse: walking over it, or the body landing on
   // ground too rough to sit on (the original checks at legCounter == 14).
+  // Only the drop goes; the dying body stays until its 250 frames are up -
+  // the original only zeroes health when movementType is not dyingEnemy.
   collectDrop(corpse) {
-    corpse.dead = true;
     const item = corpse.drop;
+    corpse.drop = null;
     if (!item) return;
     this.giveDrop(item);
   }
