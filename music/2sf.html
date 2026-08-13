@@ -1,0 +1,772 @@
+<meta charset="utf-8" />
+<title>Mantra — Nintendo DS Music (2SF)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg: #15110c;
+    --bg-panel: #1d1710;
+    --bg-well: #110d09;
+    --wire: #3c3020;
+    --wire-soft: #2a2216;
+    --ink: #e8ddc4;
+    --ink-dim: #a3937a;
+    --accent: #e0983f;
+    --accent-dim: #8a5a2a;
+    --ember: #c65a3a;
+    --good: #7ea866;
+    --focus: #e0983f;
+    font-synthesis: none;
+  }
+  :root[data-theme="light"]{
+    --bg: #ece3d0;
+    --bg-panel: #f5efe0;
+    --bg-well: #ffffff;
+    --wire: #cabb98;
+    --wire-soft: #ddd0b3;
+    --ink: #2a2216;
+    --ink-dim: #6b5c40;
+    --accent: #b4671e;
+    --accent-dim: #d99a52;
+    --ember: #a8442a;
+    --good: #4f7a3a;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg: #ece3d0;
+      --bg-panel: #f5efe0;
+      --bg-well: #ffffff;
+      --wire: #cabb98;
+      --wire-soft: #ddd0b3;
+      --ink: #2a2216;
+      --ink-dim: #6b5c40;
+      --accent: #b4671e;
+      --accent-dim: #d99a52;
+      --ember: #a8442a;
+      --good: #4f7a3a;
+    }
+  }
+
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Hoefler Text", serif;
+    display:flex;
+    justify-content:center;
+    padding: 40px 16px;
+  }
+
+  .unit{
+    width:100%;
+    max-width: 760px;
+    display:flex;
+    flex-direction:column;
+    gap: 18px;
+  }
+
+  header.masthead{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--wire);
+  }
+  .masthead .kicker{
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .masthead h1{
+    margin:0;
+    font-size: 34px;
+    font-weight: 400;
+    font-variant: small-caps;
+    letter-spacing: .04em;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+  .masthead p{
+    margin: 2px 0 0;
+    color: var(--ink-dim);
+    font-size: 14.5px;
+    max-width: 60ch;
+  }
+
+  .panel{
+    background: var(--bg-panel);
+    border: 1px solid var(--wire);
+    border-radius: 6px;
+    padding: 18px;
+  }
+
+  /* transport */
+  .transport{
+    display:flex;
+    align-items:center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .play-btn{
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    border: 1px solid var(--wire);
+    background: var(--bg-well);
+    color: var(--accent);
+    display:flex; align-items:center; justify-content:center;
+    cursor: pointer;
+    flex: 0 0 auto;
+    transition: border-color .15s ease, color .15s ease;
+  }
+  .play-btn:hover{ border-color: var(--accent); }
+  .play-btn:disabled{ opacity: .45; cursor: default; }
+  .play-btn:focus-visible, button:focus-visible, [role="button"]:focus-visible, input:focus-visible{
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  .play-btn svg{ width: 18px; height: 18px; }
+
+  .now-playing{
+    flex: 1 1 220px;
+    min-width: 0;
+  }
+  .now-playing .title{
+    font-size: 16.5px;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .now-playing .status{
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 12px;
+    color: var(--ink-dim);
+    margin-top: 2px;
+    display:flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .now-playing .status b{ color: var(--accent); font-weight: 600; }
+
+  .vol{
+    display:flex; align-items:center; gap:8px;
+    color: var(--ink-dim);
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 11px;
+  }
+  .vol input[type="range"]{
+    width: 84px;
+    accent-color: var(--accent);
+  }
+
+  /* seek bar */
+  .seek{
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .seek input[type="range"]{
+    flex: 1 1 auto;
+    min-width: 0;
+    accent-color: var(--accent);
+  }
+  .seek input[type="range"]:disabled{ opacity: .4; }
+  .seek .pos{
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: .1em;
+    color: var(--ink-dim);
+    font-variant-numeric: tabular-nums;
+    flex: 0 0 auto;
+  }
+  .seek .pos b{ color: var(--accent); font-weight: 600; }
+
+  /* spectrum meters */
+  .meters{
+    display:flex;
+    gap: 4px;
+    margin-top: 16px;
+    height: 34px;
+    align-items: flex-end;
+  }
+  .meter{
+    flex:1 1 0;
+    height:100%;
+    background: var(--bg-well);
+    border: 1px solid var(--wire-soft);
+    border-radius: 2px;
+    position: relative;
+    overflow:hidden;
+  }
+  .meter i{
+    position:absolute; left:0; right:0; bottom:0;
+    height:0%;
+    background: linear-gradient(to top, var(--good), var(--accent) 85%);
+  }
+
+  /* track list */
+  .tracklist{
+    display:flex;
+    flex-direction:column;
+    border: 1px solid var(--wire);
+    border-radius: 6px;
+    overflow:hidden;
+    background: var(--bg-panel);
+  }
+  .track{
+    display:flex;
+    align-items:baseline;
+    gap: 14px;
+    padding: 11px 16px;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--wire-soft);
+    text-align: left;
+    width: 100%;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 15px;
+  }
+  .track:last-child{ border-bottom: none; }
+  .track:hover{ background: var(--wire-soft); }
+  .track[aria-current="true"]{
+    background: var(--wire-soft);
+    color: var(--accent);
+  }
+  .track .id{
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 12px;
+    color: var(--ink-dim);
+    width: 30px;
+    flex: 0 0 auto;
+  }
+  .track[aria-current="true"] .id{ color: var(--accent); }
+  .track .name{ flex: 1 1 auto; min-width: 0; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .track .dur{
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 12px;
+    color: var(--ink-dim);
+    flex: 0 0 auto;
+  }
+  .track .spark{
+    width: 14px; text-align:center;
+    color: var(--good);
+    flex: 0 0 auto;
+    visibility: hidden;
+  }
+  .track[aria-current="true"] .spark{ visibility: visible; }
+
+  .empty{
+    padding: 14px 16px;
+    color: var(--ink-dim);
+    font-size: 14px;
+  }
+
+  /* drop zone */
+  .drop{
+    border: 1px dashed var(--wire);
+    border-radius: 6px;
+    background: var(--bg-panel);
+    padding: 20px 18px;
+    text-align:center;
+    color: var(--ink-dim);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .drop.over{
+    border-color: var(--accent);
+    border-style: solid;
+    color: var(--ink);
+  }
+  .drop code{ color: var(--accent); }
+  .drop .pick{
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-top: 10px;
+    padding: 6px 12px;
+    border: 1px solid var(--wire);
+    background: var(--bg-well);
+    color: var(--ink-dim);
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .drop .pick:hover{ border-color: var(--accent); color: var(--accent); }
+  .drop input[type="file"]{ display:none; }
+
+  .log{
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 11.5px;
+    color: var(--ink-dim);
+    min-height: 1.4em;
+    padding: 0 4px;
+  }
+  .log.err{ color: var(--ember); }
+
+  footer.note{
+    font-size: 12px;
+    color: var(--ink-dim);
+    line-height: 1.6;
+    padding: 2px 4px;
+  }
+  footer.note a{ color: var(--ink-dim); }
+</style>
+
+<div class="unit">
+  <header class="masthead">
+    <span class="kicker">Nintendo DS · 2SF</span>
+    <h1>DS Sound Format Player</h1>
+    <p>Plays <code>.mini2sf</code> / <code>.2sf</code> / <code>.2sflib</code> — Nintendo DS music rips — by running the DeSmuME ARM7 and SPU emulation directly in the browser. A <code>.mini2sf</code> holds only the sequence data, so its companion <code>.2sflib</code> must be available too.</p>
+  </header>
+
+  <div class="panel">
+    <div class="transport">
+      <button class="play-btn" id="playBtn" aria-label="Play" disabled>
+        <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="pauseIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+      </button>
+      <div class="now-playing">
+        <div class="title" id="npTitle">Loading emulator…</div>
+        <div class="status">
+          <span>GAME <b id="npGame">--</b></span>
+          <span>BY <b id="npArtist">--</b></span>
+          <span>YEAR <b id="npYear">--</b></span>
+        </div>
+      </div>
+      <div class="vol">
+        VOL
+        <input type="range" id="volSlider" min="0" max="100" value="70" aria-label="Volume" />
+      </div>
+    </div>
+    <div class="seek">
+      <input type="range" id="seekBar" min="0" max="0" value="0" step="1000" disabled
+             aria-label="Song position" />
+      <span class="pos">POS <b id="npPos">--:--</b>/<span id="npLen">--:--</span></span>
+    </div>
+    <div class="meters" id="meters" aria-hidden="true"></div>
+  </div>
+
+  <nav class="tracklist" id="tracklist" aria-label="Track list">
+    <div class="empty" id="tracklistEmpty">Reading bundled tracks…</div>
+  </nav>
+
+  <div class="drop" id="drop">
+    Drop <code>.mini2sf</code>, <code>.2sf</code> and <code>.2sflib</code> files here — a whole rip folder at once is fine.
+    <br />Library files are registered first, so the order you drop them in does not matter.
+    <br /><button type="button" class="pick" id="pickBtn">Choose files</button>
+    <input type="file" id="fileInput" multiple accept=".2sf,.mini2sf,.2sflib,.minipsf2,.psf2" />
+  </div>
+
+  <div class="log" id="log"></div>
+
+  <footer class="note">
+    Playback uses <a href="https://bitbucket.org/wothke/webds">webDS</a> by Juergen Wothke — an Emscripten port of kode54's
+    <a href="https://www.foobar2000.org/components/view/foo_input_vio2sf">vio2sf</a> 2SF decoder, itself built on the
+    <a href="https://desmume.org/">DeSmuME</a> emulator. Distributed under the GPL, same as this project. Everything is decoded in
+    JavaScript on this page; no file you drop here leaves your machine.
+  </footer>
+</div>
+
+<script src="../js/2sf/scriptprocessor_player.min.js"></script>
+<script src="../js/2sf/backend_ds.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var MANIFEST_URL = "../assets/music/2sf/index.json";
+  var MUSIC_BASE   = "../assets/music/2sf/";
+  var METER_COUNT  = 24;
+
+  var els = {
+    playBtn:   document.getElementById("playBtn"),
+    playIcon:  document.getElementById("playIcon"),
+    pauseIcon: document.getElementById("pauseIcon"),
+    title:     document.getElementById("npTitle"),
+    game:      document.getElementById("npGame"),
+    artist:    document.getElementById("npArtist"),
+    year:      document.getElementById("npYear"),
+    vol:       document.getElementById("volSlider"),
+    seek:      document.getElementById("seekBar"),
+    pos:       document.getElementById("npPos"),
+    len:       document.getElementById("npLen"),
+    meters:    document.getElementById("meters"),
+    tracklist: document.getElementById("tracklist"),
+    empty:     document.getElementById("tracklistEmpty"),
+    drop:      document.getElementById("drop"),
+    pickBtn:   document.getElementById("pickBtn"),
+    fileInput: document.getElementById("fileInput"),
+    log:       document.getElementById("log")
+  };
+
+  // tracks: {name, url} for bundled files, {name, file} for dropped ones
+  var tracks = [];
+  var current = -1;
+  var seeking = false;
+  var playerReady = false;
+  var knownLibs = {};   // lowercased .2sflib names already handed to the emulator
+
+  var meterBars = [];
+  for (var i = 0; i < METER_COUNT; i++) {
+    var m = document.createElement("div");
+    m.className = "meter";
+    var fill = document.createElement("i");
+    m.appendChild(fill);
+    els.meters.appendChild(m);
+    meterBars.push(fill);
+  }
+
+  function say(msg, isError) {
+    els.log.textContent = msg || "";
+    els.log.className = isError ? "log err" : "log";
+  }
+
+  function fmtTime(ms) {
+    if (!isFinite(ms) || ms < 0) return "--:--";
+    var s = Math.floor(ms / 1000);
+    return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2);
+  }
+
+  function player() { return ScriptNodePlayer.getInstance(); }
+
+  // ---------------------------------------------------------------- tracklist
+
+  function renderTracklist() {
+    els.tracklist.innerHTML = "";
+    if (!tracks.length) {
+      var empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "No tracks yet — drop a rip folder below.";
+      els.tracklist.appendChild(empty);
+      return;
+    }
+    tracks.forEach(function(track, idx) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "track";
+      btn.setAttribute("aria-current", idx === current ? "true" : "false");
+      btn.innerHTML =
+        '<span class="id">' + ("0" + (idx + 1)).slice(-2) + '</span>' +
+        '<span class="name"></span>' +
+        '<span class="dur"></span>' +
+        '<span class="spark">♪</span>';
+      btn.querySelector(".name").textContent = track.name;
+      btn.querySelector(".dur").textContent = track.file ? "local" : "";
+      btn.addEventListener("click", function(){ playTrack(idx); });
+      els.tracklist.appendChild(btn);
+    });
+  }
+
+  function markCurrent() {
+    var nodes = els.tracklist.querySelectorAll(".track");
+    for (var i = 0; i < nodes.length; i++) {
+      nodes[i].setAttribute("aria-current", i === current ? "true" : "false");
+    }
+  }
+
+  // ------------------------------------------------------------------ loading
+
+  function playTrack(idx) {
+    if (!playerReady || idx < 0 || idx >= tracks.length) return;
+    var track = tracks[idx];
+    // A local song whose library was never dropped in would leave the emulator
+    // waiting for a file that can never arrive, so refuse it up front.
+    if (track.file && track.lib && !knownLibs[track.lib]) {
+      say(track.name + " needs " + track.lib + " — drop that file in first.", true);
+      return;
+    }
+    current = idx;
+    markCurrent();
+    els.title.textContent = track.name;
+    say("Loading " + track.name + "…");
+    resumeContext();
+
+    var options = {};
+    var onFail = function() {
+      say("Could not play " + track.name + ((track.lib && !knownLibs[track.lib])
+        ? " — its library " + track.lib + " is missing."
+        : " — the file may be broken or unsupported."), true);
+    };
+    if (track.file) {
+      player().loadMusicFromTmpFile(track.file, options, function(){}, onFail);
+    } else {
+      player().loadMusicFromURL(track.url, options, function(){}, onFail);
+    }
+  }
+
+  function playNext() {
+    if (current + 1 < tracks.length) playTrack(current + 1);
+    else setPlayIcon(false);
+  }
+
+  function resumeContext() {
+    try {
+      var ctx = player().getAudioContext();
+      if (ctx && ctx.state === "suspended") ctx.resume();
+    } catch (ignore) {}
+  }
+
+  // ------------------------------------------------------------- dropped files
+
+  // Pull the "_lib=" entry out of a PSF-style [TAG] block, so a missing library
+  // can be named in the error message instead of just failing silently.
+  function readLibTag(buffer) {
+    var bytes = new Uint8Array(buffer);
+    var text = "";
+    // the tag block sits at the very end of the file
+    var start = Math.max(0, bytes.length - 8192);
+    for (var i = start; i < bytes.length; i++) text += String.fromCharCode(bytes[i]);
+    var at = text.indexOf("[TAG]");
+    if (at < 0) return null;
+    var match = /_lib\s*=\s*([^\r\n]+)/.exec(text.slice(at));
+    return match ? match[1].trim() : null;
+  }
+
+  function readArrayBuffer(file) {
+    return new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function(){ resolve(reader.result); };
+      reader.onerror = function(){ reject(reader.error); };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  function registerLib(file) {
+    return new Promise(function(resolve) {
+      player().uploadFile(file, {}, function(){
+        knownLibs[file.name.toLowerCase()] = true;
+        resolve();
+      }, function(){
+        say("Could not register library " + file.name, true);
+        resolve();
+      });
+    });
+  }
+
+  function isLib(name)  { return /\.(2sflib|psflib)$/i.test(name); }
+  function isSong(name) { return /\.(mini2sf|2sf|minipsf2|psf2)$/i.test(name); }
+
+  function addFiles(fileList) {
+    var files = Array.prototype.slice.call(fileList);
+    var libs  = files.filter(function(f){ return isLib(f.name); });
+    var songs = files.filter(function(f){ return isSong(f.name); });
+
+    if (!libs.length && !songs.length) {
+      say("Nothing playable in that drop — expected .mini2sf, .2sf or .2sflib files.", true);
+      return;
+    }
+
+    // Libraries must reach the emulator's file system before any song that
+    // references them, so register all of them first and only then queue songs.
+    say("Registering " + libs.length + " librar" + (libs.length === 1 ? "y" : "ies") + "…");
+    Promise.all(libs.map(registerLib)).then(function(){
+      return Promise.all(songs.map(function(file){
+        return readArrayBuffer(file).then(function(buffer){
+          return { name: file.name, file: file, lib: (readLibTag(buffer) || "").toLowerCase() };
+        }, function(){
+          return { name: file.name, file: file, lib: "" };
+        });
+      }));
+    }).then(function(entries){
+      var startAt = tracks.length;
+      var missing = {};
+      entries.forEach(function(entry){
+        if (entry.lib && !knownLibs[entry.lib]) missing[entry.lib] = true;
+      });
+      tracks = tracks.concat(entries);
+      renderTracklist();
+      markCurrent();
+
+      var missingNames = Object.keys(missing);
+      if (missingNames.length) {
+        say("Added " + entries.length + " track(s). Missing librar"
+            + (missingNames.length === 1 ? "y: " : "ies: ") + missingNames.join(", ")
+            + " — drop it in and play again.", true);
+      } else {
+        say("Added " + entries.length + " track(s).");
+      }
+      if (entries.length && current < 0) playTrack(startAt);
+    });
+  }
+
+  ["dragenter", "dragover"].forEach(function(type){
+    els.drop.addEventListener(type, function(e){
+      e.preventDefault();
+      els.drop.classList.add("over");
+    });
+  });
+  ["dragleave", "drop"].forEach(function(type){
+    els.drop.addEventListener(type, function(e){
+      e.preventDefault();
+      els.drop.classList.remove("over");
+    });
+  });
+  els.drop.addEventListener("drop", function(e){
+    if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  });
+  // dropping anywhere else must not make the browser navigate to the file
+  window.addEventListener("dragover", function(e){ e.preventDefault(); });
+  window.addEventListener("drop", function(e){ e.preventDefault(); });
+
+  els.pickBtn.addEventListener("click", function(){ els.fileInput.click(); });
+  els.fileInput.addEventListener("change", function(){
+    if (els.fileInput.files.length) addFiles(els.fileInput.files);
+    els.fileInput.value = "";
+  });
+
+  // ------------------------------------------------------------------ controls
+
+  function setPlayIcon(playing) {
+    els.playIcon.style.display  = playing ? "none" : "";
+    els.pauseIcon.style.display = playing ? "" : "none";
+    els.playBtn.setAttribute("aria-label", playing ? "Pause" : "Play");
+  }
+
+  els.playBtn.addEventListener("click", function(){
+    if (current < 0) {
+      if (tracks.length) playTrack(0);
+      return;
+    }
+    resumeContext();
+    if (player().isPaused()) { player().resume(); setPlayIcon(true); }
+    else                     { player().pause();  setPlayIcon(false); }
+  });
+
+  els.vol.addEventListener("input", function(){
+    player().setVolume(parseInt(els.vol.value, 10) / 100);
+  });
+
+  els.seek.addEventListener("input",  function(){ seeking = true; });
+  els.seek.addEventListener("change", function(){
+    if (current < 0) { seeking = false; return; }
+    var target = parseInt(els.seek.value, 10);
+    // The DS emulation has no fast path to an arbitrary position: it replays the
+    // song up to the target, which blocks for seconds. Paint a warning first.
+    say("Seeking to " + fmtTime(target) + " — the emulator replays the song up to there, so this takes a moment…");
+    requestAnimationFrame(function(){
+      setTimeout(function(){
+        player().seekPlaybackPosition(target);
+        seeking = false;
+        say("");
+      }, 0);
+    });
+  });
+
+  document.addEventListener("keydown", function(e){
+    if (e.target.tagName === "INPUT" || e.target.tagName === "BUTTON") return;
+    if (e.key === " ")          { e.preventDefault(); els.playBtn.click(); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); playNext(); }
+    else if (e.key === "ArrowUp")   { e.preventDefault(); if (current > 0) playTrack(current - 1); }
+  });
+
+  // ------------------------------------------------------------- display loop
+
+  function updateSongInfo() {
+    var info = player().getSongInfo() || {};
+    var track = current >= 0 ? tracks[current] : null;
+    // a manifest title wins over the tag, which for most rips is just the filename
+    els.title.textContent  = (track && track.titled ? track.name : info.title) ||
+                             (track ? track.name : "");
+    els.game.textContent   = info.game   || "--";
+    els.artist.textContent = info.artist || "--";
+    els.year.textContent   = info.year   || "--";
+  }
+
+  function tick() {
+    requestAnimationFrame(tick);
+    if (!playerReady) return;
+
+    var playing = current >= 0 && !player().isPaused();
+
+    var max = player().getMaxPlaybackPosition();
+    if (max > 0) {
+      els.seek.disabled = false;
+      els.seek.max = max;
+      els.len.textContent = fmtTime(max);
+      if (!seeking) {
+        var pos = player().getPlaybackPosition();
+        els.seek.value = pos;
+        els.pos.textContent = fmtTime(pos);
+      }
+    } else {
+      els.seek.disabled = true;
+      els.len.textContent = "--:--";
+      els.pos.textContent = "--:--";
+    }
+
+    var spectrum = playing ? player().getFreqByteData() : null;
+    for (var i = 0; i < METER_COUNT; i++) {
+      var level = 0;
+      if (spectrum && spectrum.length) {
+        // low bins carry most of the energy, so sample them logarithmically
+        var bin = Math.floor(Math.pow(i / METER_COUNT, 2) * (spectrum.length - 1));
+        level = spectrum[bin] / 255 * 100;
+      }
+      meterBars[i].style.height = level.toFixed(1) + "%";
+    }
+  }
+  requestAnimationFrame(tick);
+
+  // -------------------------------------------------------------------- setup
+
+  function onPlayerReady() {
+    if (playerReady) return;   // uploadFile() re-fires this for every library
+    playerReady = true;
+    els.playBtn.disabled = false;
+    els.title.textContent = tracks.length ? "Select a track" : "Drop a rip to begin";
+    player().setVolume(parseInt(els.vol.value, 10) / 100);
+    say("Emulator ready.");
+  }
+
+  function onTrackReadyToPlay() {
+    player().play();
+    setPlayIcon(true);
+    updateSongInfo();
+    say("");
+  }
+
+  function onTrackEnd() {
+    setPlayIcon(false);
+    playNext();
+  }
+
+  ScriptNodePlayer.createInstance(
+    new DsBackendAdapter(false),   // false: use our filenames as-is (no modland case mangling)
+    "",                            // basePath - tracks are addressed by full URL
+    [],                            // nothing to preload
+    true,                          // enable spectrum analyzer
+    onPlayerReady, onTrackReadyToPlay, onTrackEnd
+  );
+
+  fetch(MANIFEST_URL).then(function(res){
+    if (!res.ok) throw new Error("no manifest");
+    return res.json();
+  }).then(function(manifest){
+    var entries = (manifest.tracks || []).map(function(entry){
+      var file = typeof entry === "string" ? entry : entry.file;
+      var title = (typeof entry === "object" && entry.title) || "";
+      return {
+        name: title || file,
+        titled: !!title,
+        // absolute URLs keep the emulator's virtual paths free of ".." segments,
+        // and let it fetch each .2sflib from the same folder on its own
+        url: new URL(MUSIC_BASE + file, location.href).href
+      };
+    });
+    // append, never prepend: files may already have been dropped in while the
+    // manifest was still loading, and their indices must stay valid
+    tracks = tracks.concat(entries);
+    renderTracklist();
+    markCurrent();
+    if (playerReady && current < 0 && tracks.length) els.title.textContent = "Select a track";
+  }).catch(function(){
+    renderTracklist();
+  });
+})();
+</script>
