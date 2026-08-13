@@ -8,8 +8,8 @@ import { World, MOD } from './map.js';
 import { Renderer } from './renderer.js';
 import { Input } from './input.js';
 import { Saric, DIR_VECTORS } from './saric.js';
-import { spawnScreen, makeMover, EnemyProjectile, PlayerProjectile } from './enemy.js';
-import { BOSS_NAMES } from './enemy_ai.js';
+import { spawnScreen, makeMover, EnemyProjectile, PlayerProjectile, Corpse } from './enemy.js';
+import { BOSS_NAMES, AI } from './enemy_ai.js';
 import { overlaps } from './collision.js';
 import { Audio } from './audio.js';
 import { UI } from './ui.js';
@@ -57,6 +57,7 @@ class Game {
 
     this.screenIndex = START_SCREEN;
     this.projectiles = [];
+    this.corpses = [];
     this.victory = false;
     this.mantrasReady = false;
     this.doorLatch = null;
@@ -102,6 +103,7 @@ class Game {
     // with a movementType of 50 or above.
     this.enemies = spawnScreen(this.screen, this.defeatedMasks[index]);
     this.projectiles = [];
+    this.corpses = [];
     this.playerProjectiles = [];
     this.move = makeMover(this.world, this.screen);
 
@@ -212,20 +214,16 @@ class Game {
     if (text) this.ui.showDialog('', text);
   }
 
-  // A slain enemy stays slain, hands over its experience, and leaves behind
-  // whatever deadItem names.
+  // A slain enemy stays slain, hands over its experience, and leaves a dying
+  // body behind - the death animation in the original's killCurrentEnemy -
+  // carrying whatever deadItem names. The drop is picked up off the body, so
+  // it is not handed over here.
   defeat(enemy) {
     this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
     const leveledUp = this.player.addXp(enemy.xp);
-
-    const drop = getItem(enemy.drop);
-    if (drop) {
-      const dropIsMoney = !!(drop.attributes & FLAG.MONEY);
-      this.player.addItem(drop);
-      this.audio.play(dropIsMoney ? 'money' : 'item');
-      this.hudNote = t('FOUND {name}', { name: drop.name.toUpperCase() });
-      this.noteUntil = this.frame + 50;
-    }
+    // Door enemies vanish outright when they give way - killCurrentEnemy
+    // returns early for them in the original - so no body is left behind.
+    if (enemy.ai !== AI.DOOR) this.corpses.push(new Corpse(enemy, getItem(enemy.drop)));
 
     if (enemy.boss) {
       const bossName = localizeBossName(BOSS_NAMES[enemy.ai] || t('BOSS'), enemy.ai);
@@ -236,6 +234,19 @@ class Game {
       this.hudNote = t('LEVEL UP!');
       this.noteUntil = this.frame + 60;
     }
+  }
+
+  // Picking a drop off a corpse: walking over it, or the body landing on
+  // ground too rough to sit on (the original checks at legCounter == 14).
+  collectDrop(corpse) {
+    corpse.dead = true;
+    const item = corpse.drop;
+    if (!item) return;
+    const isMoney = !!(item.attributes & FLAG.MONEY);
+    this.player.addItem(item);
+    this.audio.play(isMoney ? 'money' : 'item');
+    this.hudNote = t('FOUND {name}', { name: item.name.toUpperCase() });
+    this.noteUntil = this.frame + 50;
   }
 
   checkScreenTransitions() {
@@ -366,6 +377,23 @@ class Game {
 
     this.enemies = this.enemies.filter((e) => !e.dead);
 
+    // Dying bodies from defeated enemies. The drop stays on the body until it
+    // is walked over, or is handed straight over when the body lands on
+    // ground too rough to sit on.
+    for (const corpse of this.corpses) {
+      if (corpse.dead) continue;
+      corpse.update();
+      if (corpse.dead) continue;
+      if (corpse.drop && corpse.legCounter === 14 && this.world.boxHitsWall(this.screen, corpse.body)) {
+        this.collectDrop(corpse);
+        continue;
+      }
+      if (corpse.drop && overlaps(player.body, corpse.body)) {
+        this.collectDrop(corpse);
+      }
+    }
+    this.corpses = this.corpses.filter((c) => !c.dead);
+
     // Player-fired missiles use the equipped off-hand item's damage and
     // projectile sprite, and can defeat enemies from a distance.
     for (const proj of this.playerProjectiles) {
@@ -414,6 +442,7 @@ class Game {
     const r = this.renderer;
     r.clear();
     r.drawScreen(this.screen);
+    r.drawCorpses(this.corpses);
     r.drawEntities(this.player, this.enemies);
     r.drawProjectiles(this.playerProjectiles);
     r.drawProjectiles(this.projectiles);

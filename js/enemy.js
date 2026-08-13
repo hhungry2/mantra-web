@@ -191,6 +191,50 @@ export class PlayerProjectile {
   }
 }
 
+// The dying body the original leaves when an enemy is killed: template 2056
+// spins through its frames for a dozen frames, then settles. A body carrying a
+// drop stays until the drop is walked over; one with nothing to drop fades
+// after 250 frames. (killCurrentEnemy / dyingMonster in the original C source.)
+const DEATH_TEMPLATE = 2056;
+
+export class Corpse {
+  constructor(enemy, drop) {
+    this.x = enemy.x;
+    this.y = enemy.y;
+    this.drop = drop || null;
+    this.legCounter = 0;
+    this.dead = false;
+  }
+
+  get body() {
+    return box(this.x, this.y, BODY_W, BODY_H);
+  }
+
+  // dyingMonster in EnemyUpdate.c: for the first twelve frames the facing
+  // walks 1..4 (1 + legCounter/4) while legState alternates 0/2, then it
+  // settles on facing 4 with legState 0 when a drop waits, 1 otherwise.
+  get frame() {
+    let facing;
+    let legState;
+    if (this.legCounter < 12) {
+      facing = 1 + Math.floor(this.legCounter / 4);
+      legState = this.legCounter & 2;
+    } else {
+      facing = 4;
+      legState = this.drop ? 0 : 1;
+    }
+    return DEATH_TEMPLATE + legState + (facing - 1) * 2;
+  }
+
+  update() {
+    this.legCounter++;
+    if (this.legCounter >= 250) {
+      if (this.drop) this.legCounter = 16;
+      else this.dead = true;
+    }
+  }
+}
+
 export function spawnScreen(screen, defeatedMask = 0) {
   const enemies = [];
   if (!screen || !screen.enemies) return enemies;

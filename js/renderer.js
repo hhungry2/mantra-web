@@ -29,10 +29,13 @@ export class Renderer {
     this.lose = assets.lose;
     this.sprites = assets.sprites;
     this.bosses = assets.bosses;
+    this.icons = assets.icons;
     this.tileIndex = assets.tileIndex;
     this.spriteIndex = assets.spriteIndex;
+    this.iconIndex = assets.iconIndex;
     this.tileCols = assets.gfx.tiles.cols;
     this.spriteCols = assets.gfx.sprites.cols;
+    this.iconCols = assets.gfx.icons32.cols;
   }
 
   drawTile(id, x, y) {
@@ -71,6 +74,26 @@ export class Renderer {
       for (let tx = 0; tx < SCREEN_COLS; tx++) {
         this.drawTile(screen.tiles[ty * SCREEN_COLS + tx], tx * TILE, ty * TILE);
       }
+    }
+  }
+
+  // Dying bodies lie on the ground beneath everything else, and a drop sits
+  // on the body so it can be seen and walked over.
+  drawCorpses(corpses) {
+    for (const c of corpses) {
+      if (c.dead) continue;
+      this.drawSprite(c.frame, c.x - SPRITE / 2, c.y + SPRITE_OFFSET_Y);
+      if (!c.drop) continue;
+      const icon = this.iconIndex.get(c.drop.icon);
+      if (icon === undefined) continue;
+      const size = 32;
+      const col = icon % this.iconCols;
+      const row = Math.floor(icon / this.iconCols);
+      this.ctx.drawImage(
+        this.icons,
+        col * size, row * size, size, size,
+        Math.round(c.x - size / 2), Math.round(c.y - size / 2), size, size,
+      );
     }
   }
 
