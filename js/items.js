@@ -49,11 +49,16 @@ export function isRangedItem(item) {
   return isEquipable(item) && !!(item.attributes & FLAG.MISSILE) && !!item.fires;
 }
 
+// GameTypes.h:147-158: isSword/isArmor/isSpecialItem each "deselect others of
+// this type" - one at a time. isSelectable ("toggle checkmark") does not -
+// any number of rings can be worn together, and their stats stack with
+// whatever's in the armor slot (Dialogs.c:1561-1580, g_Saric.itemEffects[2]).
 export function getEquipmentSlot(item) {
   if (!isEquipable(item)) return null;
   if (item.type === ITEM_TYPES.WEAPON) return 'weapon';
   if (item.type === ITEM_TYPES.ARMOR) return 'armor';
-  return 'offhand';
+  if (item.attributes & FLAG.SELECTABLE) return 'ring';
+  return 'special';
 }
 
 const byCode = new Map();

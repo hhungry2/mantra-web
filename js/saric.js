@@ -45,9 +45,15 @@ export class Saric {
 
     // Saric starts empty-handed. The dagger is received from the wounded man
     // on the opening screen, matching the original game's initSaric().
+    // Dialogs.c:1520-1580: itemEffects[0] is the one equipped sword,
+    // itemEffects[1] the one equipped special item (wand/mantra/key/...),
+    // itemEffects[2] the equipped armor plus every equipped ring summed
+    // together - rings toggle independently and don't compete with each
+    // other or with the special slot.
     this.weapon = null;
-    this.offhand = null;
+    this.special = null;
     this.armor = null;
+    this.rings = [];
     this.inventory = [];
 
     this.walkTimer = 0;
@@ -58,16 +64,16 @@ export class Saric {
     this.swing = 0;
 
     this.weaponFireCounter = 999;
-    this.offhandFireCounter = 999;
+    this.specialFireCounter = 999;
     this.hadHitEnemy = false;
     this.swordOut = false;
     this.wasSwordOut = false;
-    this.offhandOut = false;
-    this.wasOffhandOut = false;
+    this.specialOut = false;
+    this.wasSpecialOut = false;
 
     this.swungThisFrame = false;
     this.firedThisFrame = null;
-    this.offhandFiredThisFrame = null;
+    this.specialFiredThisFrame = null;
     this.specialRoutineThisFrame = null;
 
     this.woundCounter = 0;
@@ -77,41 +83,53 @@ export class Saric {
     this.dead = false;
   }
 
+  // Input.c:823: i = g_Saric.damage + itemEffects[0].damage + itemEffects[1].damage + itemEffects[2].damage
   get attack() {
-    return this.baseAttack + this.weaponBonus('damage') + this.offhandBonus('damage');
+    return this.baseAttack + this.weaponBonus('damage') + this.specialBonus('damage') + this.armorAndRingsBonus('damage');
   }
 
   get defense() {
-    return this.baseDefense + this.armorBonus('armor') + this.offhandBonus('armor');
+    return this.baseDefense + this.weaponBonus('armor') + this.specialBonus('armor') + this.armorAndRingsBonus('armor');
   }
 
   get speedBonus() {
-    return this.weaponBonus('speed') + this.offhandBonus('speed') + this.armorBonus('speed');
+    return this.weaponBonus('speed') + this.specialBonus('speed') + this.armorAndRingsBonus('speed');
   }
 
   // Dialogs.c:1584-1585
   get immunities() {
-    return (this.weapon?.immunities || 0) | (this.offhand?.immunities || 0) | (this.armor?.immunities || 0);
+    return (this.weapon?.immunities || 0) | (this.special?.immunities || 0) | this.armorAndRingsBonus('immunities');
   }
 
   get damageType() {
-    return (this.weapon?.damageType || 0) | (this.offhand?.damageType || 0) | (this.armor?.damageType || 0);
+    return (this.weapon?.damageType || 0) | (this.special?.damageType || 0) | this.armorAndRingsBonus('damageType');
   }
 
   weaponBonus(field) {
     return this.weapon ? (this.weapon[field] || 0) : 0;
   }
 
-  offhandBonus(field) {
-    return this.offhand ? (this.offhand[field] || 0) : 0;
+  specialBonus(field) {
+    return this.special ? (this.special[field] || 0) : 0;
   }
 
-  armorBonus(field) {
-    return this.armor ? (this.armor[field] || 0) : 0;
+  // Dialogs.c:1561-1580 (itemEffects[2]): the armor slot and every equipped
+  // ring are summed (or OR'd, for the bitmask fields) into one bucket -
+  // rings stack with each other and with the armor, unlike the exclusive
+  // weapon/special slots.
+  armorAndRingsBonus(field) {
+    const isMask = field === 'immunities' || field === 'damageType';
+    let total = 0;
+    if (this.armor) total = isMask ? (total | (this.armor[field] || 0)) : total + (this.armor[field] || 0);
+    for (const ring of this.rings) {
+      total = isMask ? (total | (ring[field] || 0)) : total + (ring[field] || 0);
+    }
+    return total;
   }
 
   isEquipped(item) {
     const slot = getEquipmentSlot(item);
+    if (slot === 'ring') return this.rings.some((r) => r.code === item.code);
     return !!slot && this[slot]?.code === item.code;
   }
 
@@ -145,9 +163,18 @@ export class Saric {
     return leveledUp;
   }
 
+  // Dialogs.c:1109-1129: isSelectable (rings) just toggles membership and
+  // never deselects anything else; isSword/isArmor/isSpecialItem each
+  // replace whatever was already in their own single slot.
   equip(item) {
     const slot = getEquipmentSlot(item);
     if (!slot) return false;
+    if (slot === 'ring') {
+      const idx = this.rings.findIndex((r) => r.code === item.code);
+      if (idx >= 0) this.rings.splice(idx, 1);
+      else this.rings.push(item);
+      return true;
+    }
     if (this[slot]?.code === item.code) {
       this[slot] = null;
     } else {
@@ -167,8 +194,10 @@ export class Saric {
         const idx = this.inventory.indexOf(item);
         if (idx >= 0) this.inventory.splice(idx, 1);
         if (this.weapon === item) this.weapon = null;
-        if (this.offhand === item) this.offhand = null;
+        if (this.special === item) this.special = null;
         if (this.armor === item) this.armor = null;
+        const ringIdx = this.rings.indexOf(item);
+        if (ringIdx >= 0) this.rings.splice(ringIdx, 1);
       }
     }
   }
@@ -289,7 +318,7 @@ export class Saric {
   update(input, world, screen, enemies = []) {
     this.swungThisFrame = false;
     this.firedThisFrame = null;
-    this.offhandFiredThisFrame = null;
+    this.specialFiredThisFrame = null;
     this.specialRoutineThisFrame = null;
 
     // Input.c:693-701: woundCounter
@@ -305,7 +334,7 @@ export class Saric {
     if (this.dead) return;
 
     this.weaponFireCounter++;
-    this.offhandFireCounter++;
+    this.specialFireCounter++;
 
     // Input.c:749-935: Main Weapon (Sword)
     this.swordOut = false;
@@ -344,30 +373,30 @@ export class Saric {
     }
     this.wasSwordOut = this.swordOut;
 
-    // Input.c:941-1030: Offhand Weapon / Item
-    this.offhandOut = false;
+    // Input.c:941-1030: Special-slot Weapon / Item (itemEffects[1])
+    this.specialOut = false;
     if (input.ranged) {
-      const offhand = this.offhand;
-      if (offhand) {
-        if (this.offhandFireCounter >= (offhand.rate || 0)) {
-          const canUse = this.debugMode || (offhand.stamina || 0) <= 0 || this.stamina >= offhand.stamina;
+      const special = this.special;
+      if (special) {
+        if (this.specialFireCounter >= (special.rate || 0)) {
+          const canUse = this.debugMode || (special.stamina || 0) <= 0 || this.stamina >= special.stamina;
           if (canUse) {
-            this.offhandOut = true;
-            if (!this.wasOffhandOut) {
-              if (!this.debugMode && (offhand.stamina || 0) > 0) {
-                this.stamina = Math.max(0, this.stamina - offhand.stamina);
+            this.specialOut = true;
+            if (!this.wasSpecialOut) {
+              if (!this.debugMode && (special.stamina || 0) > 0) {
+                this.stamina = Math.max(0, this.stamina - special.stamina);
               }
-              if (offhand.attributes & FLAG.HAS_CHARGES) {
-                this.consumeItemCharge(offhand);
+              if (special.attributes & FLAG.HAS_CHARGES) {
+                this.consumeItemCharge(special);
               }
-              if (offhand.heal > 0) {
-                this.hp = Math.min(this.hpMax, this.hp + offhand.heal);
+              if (special.heal > 0) {
+                this.hp = Math.min(this.hpMax, this.hp + special.heal);
               }
-              if (offhand.fires) {
-                this.offhandFiredThisFrame = offhand;
+              if (special.fires) {
+                this.specialFiredThisFrame = special;
               }
-              if (offhand.attributes & FLAG.SPECIAL_ROUTINE) {
-                this.specialRoutineThisFrame = offhand;
+              if (special.attributes & FLAG.SPECIAL_ROUTINE) {
+                this.specialRoutineThisFrame = special;
               }
             }
           }
@@ -375,10 +404,10 @@ export class Saric {
       }
     }
 
-    if (this.wasOffhandOut && !this.offhandOut) {
-      this.offhandFireCounter = 0;
+    if (this.wasSpecialOut && !this.specialOut) {
+      this.specialFireCounter = 0;
     }
-    this.wasOffhandOut = this.offhandOut;
+    this.wasSpecialOut = this.specialOut;
 
     let dx = 0;
     let dy = 0;

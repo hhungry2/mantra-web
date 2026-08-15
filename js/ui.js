@@ -455,7 +455,9 @@ export class UI {
             if (idx >= 0) p.inventory.splice(idx, 1);
             if (p.weapon === item) p.weapon = null;
             if (p.armor === item) p.armor = null;
-            if (p.offhand === item) p.offhand = null;
+            if (p.special === item) p.special = null;
+            const ringIdx = p.rings.indexOf(item);
+            if (ringIdx >= 0) p.rings.splice(ringIdx, 1);
           }
           this.game.audio.play('money');
           this.renderShopItems();
