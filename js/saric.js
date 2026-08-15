@@ -176,11 +176,28 @@ export class Saric {
   // what the Fatigue Restoration and All Salve potions do.
   useItem(item) {
     const idx = this.inventory.indexOf(item);
-    if (idx < 0) return false;
-    if (!item.heal && item.stamina >= 0) return false;
-    if (item.heal) this.hp = Math.min(this.hpMax, this.hp + item.heal);
+    if (idx < 0) return { success: false, reason: 'not_found' };
+    if (!item.heal && item.stamina >= 0) return { success: false, reason: 'not_usable' };
+
+    const hpNeeded = item.heal > 0 && this.hp < this.hpMax;
+    const stNeeded = item.stamina < 0 && this.stamina < this.staminaMax;
+
+    if (!hpNeeded && !stNeeded && (item.heal > 0 || item.stamina < 0)) {
+      return { success: false, reason: 'full' };
+    }
+
+    let healedHp = 0;
+    let restoredStamina = 0;
+
+    if (item.heal) {
+      const oldHp = this.hp;
+      this.hp = Math.min(this.hpMax, this.hp + item.heal);
+      healedHp = this.hp - oldHp;
+    }
     if (item.stamina < 0) {
+      const oldStamina = this.stamina;
       this.stamina = Math.min(this.staminaMax, this.stamina - item.stamina);
+      restoredStamina = this.stamina - oldStamina;
     }
 
     if (item.currentCharges === undefined) item.currentCharges = item.charges || 1;
@@ -192,7 +209,7 @@ export class Saric {
         this.inventory.splice(idx, 1);
       }
     }
-    return true;
+    return { success: true, healedHp, restoredStamina };
   }
 
   // Money is never carried: picking a coin up banks its face value.
