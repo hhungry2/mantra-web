@@ -28,6 +28,17 @@ const BODY_H = 16;
 const BOSS_BODY = 64;
 const HIT_FLASH = 6;
 
+// A missile's artwork is a small blob in the middle of its 32x32 frame - the
+// projectile sprites measure 10x9 to 12x14 opaque pixels, the rest is
+// transparent. The original never collides on the frame: testIntercept uses
+// the 32x32 rects only to find the overlapping region, then walks both
+// sprites' pixel masks and reports a hit solely where opaque pixels coincide
+// (EnemyCollision.c:41-61 interceptAsm). Sizing a missile's AABB to the whole
+// frame therefore over-reports by roughly 3x on each axis and the shot
+// registers a tile before it looks like it should.
+const MISSILE_BODY_W = 12;
+const MISSILE_BODY_H = 12;
+
 // The data stores speed in the original's units; a plain wanderer is 1.
 const SPEED_SCALE = 0.7;
 
@@ -86,13 +97,11 @@ export class Enemy {
   }
 
   get body() {
-    // EnemyCollision.c tests every normal enemy, including missiles, against
-    // its 32x32 `where` rectangle and pixel mask. Keep the smaller visible
-    // body for ordinary contact, but do not let flying missiles pass through
-    // Saric with the 20x16 approximation.
-    const size = this.boss ? BOSS_BODY : (this.isMissile ? TILE : BODY_W);
-    const height = this.boss ? BOSS_BODY : (this.isMissile ? TILE : BODY_H);
-    return box(this.x, this.y, size, height);
+    if (this.boss) return box(this.x, this.y, BOSS_BODY, BOSS_BODY);
+    // Missiles collide on their drawn blob, not their 32x32 frame - see the
+    // note on MISSILE_BODY_W.
+    if (this.isMissile) return box(this.x, this.y, MISSILE_BODY_W, MISSILE_BODY_H);
+    return box(this.x, this.y, BODY_W, BODY_H);
   }
 
   // The original stores two frames per facing after the spriteRef. BossData
