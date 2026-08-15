@@ -122,8 +122,7 @@ class Game {
   loadGameData(d) {
     this.victory = false;
     this.player.dead = false;
-    this.player.invuln = 0;
-    this.player.terrainCooldown = 0;
+    this.player.woundCounter = 0;
     this.player.swing = 0;
     this.player.cooldown = 0;
     this.player.rangedCooldown = 0;
@@ -379,12 +378,10 @@ class Game {
     this.checkScreenTransitions();
 
     // Map special values are signed: negative values are healing springs,
-    // positive values are hazards. The original applies one effect every 30
-    // frames while Saric overlaps a qualifying tile.
+    // positive values are hazards. Input.c:715-742: checks woundCounter == 0.
     const terrainEffect = this.world.terrainEffectAt(this.screen, player.body);
-    player.terrainCooldown = Math.max(0, (player.terrainCooldown || 0) - 1);
-    if (terrainEffect !== null && player.terrainCooldown === 0) {
-      player.terrainCooldown = 30;
+    if (terrainEffect !== null && player.woundCounter === 0) {
+      player.woundCounter = 1;
       if (terrainEffect < 0) {
         player.hp = Math.min(player.hpMax, player.hp - terrainEffect);
       } else if (terrainEffect > 0 && !player.debugMode) {
@@ -464,7 +461,7 @@ class Game {
       }
 
       if (!enemy.dead && enemy.damage > 0 && overlaps(player.body, enemy.body)) {
-        if (player.hurt(enemy.damage, enemy.damageType, enemy.x, enemy.y, enemy.ai === AI.DYING)) {
+        if (player.hurt(enemy.damage, enemy.damageType, enemy.facing, enemy.ai === AI.DYING, this.world, this.screen)) {
           this.audio.play(player.dead ? 'die' : 'hurt');
         }
         if (enemy.attributes & ATTR.IS_MISSILE) {

@@ -60,10 +60,8 @@ export class Saric {
     this.rangedCooldown = 0;
     this.woundCounter = 0;
     this.incrementalDamageCounter = 0;
-    this.terrainCooldown = 0;
     this.messageCounter = 0;
     this.debugMode = false;
-    this.knock = null;
     this.dead = false;
   }
 
@@ -193,8 +191,8 @@ export class Saric {
     return true;
   }
 
-  // EnemyCollision.c:512-540
-  hurt(rawDamage, damageType = 0, fromX = null, fromY = null, isDying = false) {
+  // EnemyCollision.c:512-571
+  hurt(rawDamage, damageType = 0, enemyFacing = 0, isDying = false, world = null, screen = null) {
     if (this.debugMode || this.dead) return false;
     if (this.woundCounter > 0) return false;
 
@@ -216,11 +214,19 @@ export class Saric {
       this.hp = Math.max(0, this.hp - i);
       this.woundCounter = 1;
       if (this.hp === 0) this.dead = true;
-      if (fromX !== null && fromY !== null) {
-        const dx = this.x - fromX;
-        const dy = this.y - fromY;
-        const len = Math.hypot(dx, dy) || 1;
-        this.knock = { x: (dx / len) * 5, y: (dy / len) * 5 };
+
+      // EnemyCollision.c:547-571: 8px bump in enemy facing direction
+      if (world && screen) {
+        let kx = 0;
+        let ky = 0;
+        if (enemyFacing === 1) kx = 8;
+        else if (enemyFacing === 2) ky = 8;
+        else if (enemyFacing === 3) kx = -8;
+        else if (enemyFacing === 4) ky = -8;
+
+        if (kx !== 0 || ky !== 0) {
+          this.step(world, screen, kx, ky);
+        }
       }
       return true;
     }
@@ -233,7 +239,6 @@ export class Saric {
       this.woundCounter++;
       if (this.woundCounter > 30) this.woundCounter = 0;
     }
-    if (this.terrainCooldown > 0) this.terrainCooldown--;
     if (this.messageCounter > 0) {
       this.messageCounter++;
       if (this.messageCounter > 10) this.messageCounter = 0; // Input.c:704-712
@@ -303,13 +308,6 @@ export class Saric {
       this.walkTimer++;
     } else {
       this.walkTimer = 0;
-    }
-
-    if (this.knock) {
-      this.step(world, screen, this.knock.x, this.knock.y);
-      this.knock.x *= 0.7;
-      this.knock.y *= 0.7;
-      if (Math.abs(this.knock.x) + Math.abs(this.knock.y) < 0.4) this.knock = null;
     }
   }
 
