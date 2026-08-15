@@ -420,7 +420,7 @@ class Game {
     if (this.ui.inventoryOpen || this.ui.shopOpen || this.ui.saveOpen || this.ui.dialogActive || this.ui.helpOpen) return;
 
     const player = this.player;
-    player.update(this.input, this.world, this.screen);
+    player.update(this.input, this.world, this.screen, this.enemies);
     if (player.swungThisFrame) this.audio.play('sword');
 
     if (player.firedThisFrame) {

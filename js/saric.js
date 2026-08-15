@@ -4,10 +4,11 @@ import {
   DIR_LEFT, DIR_RIGHT, DIR_DOWN, DIR_UP,
   SARIC_WALK_A, SARIC_WALK_B, SARIC_SWING_A, SARIC_SWING_B, SWORD_SPRITE,
 } from './config.js';
-import { box } from './collision.js';
+import { box, overlaps } from './collision.js';
 import {
   ITEM_TYPES, FLAG, getEquipmentSlot, isRangedItem,
 } from './items.js';
+import { ATTR } from './enemy.js';
 
 const WALK_SPEED = 2;
 const RUN_SPEED = 6;
@@ -285,7 +286,7 @@ export class Saric {
     return false;
   }
 
-  update(input, world, screen) {
+  update(input, world, screen, enemies = []) {
     this.swungThisFrame = false;
     this.firedThisFrame = null;
     this.offhandFiredThisFrame = null;
@@ -424,21 +425,47 @@ export class Saric {
         ? (baseSpeed + this.speedBonus) * 2
         : (baseSpeed + this.speedBonus);
       const len = Math.hypot(dx, dy) || 1;
-      this.step(world, screen, (dx / len) * speed, (dy / len) * speed);
+      this.step(world, screen, (dx / len) * speed, (dy / len) * speed, enemies);
       this.walkTimer++;
     } else {
       this.walkTimer = 0;
     }
   }
 
-  step(world, screen, dx, dy) {
+  // EnemyCollision.c:236-431 (standableRect): the original blocks Saric's
+  // own movement against every non-insubstantial enemy, not just tiles - a
+  // signpost or a boulder is exactly as solid as a wall. Scoped here to
+  // enemies with no interaction of their own (no message, not something you
+  // walk over to pick up, not a door - doors already block via
+  // world.closedDoors): those carry an overlap-based trigger elsewhere in
+  // the tick loop, and the original's version of that trigger runs off a
+  // per-pixel sprite mask, which tolerates a body sitting flush against
+  // another without needing the two AABBs this port uses to ever register as
+  // overlapping. Extending the same blocking to message-bearing or holdable
+  // enemies would leave a standing gap that overlaps() (strict `<`) can
+  // never close, so a shop or signpost approached head-on would go silent.
+  blockedByEnemy(candidate, enemies) {
+    for (const enemy of enemies) {
+      if (enemy.dead) continue;
+      if (enemy.attributes & ATTR.INSUBSTANTIAL) continue;
+      if (enemy.attributes & ATTR.CAN_BE_HELD) continue;
+      if (enemy.ai === 15) continue; // AI.DOOR: handled via world.closedDoors
+      if (enemy.message) continue;
+      if (overlaps(candidate, enemy.body)) return true;
+    }
+    return false;
+  }
+
+  step(world, screen, dx, dy, enemies = []) {
     if (dx !== 0) {
       const nx = this.x + dx;
-      if (!world.boxHitsWall(screen, box(nx, this.y, BODY_W, BODY_H))) this.x = nx;
+      const candidate = box(nx, this.y, BODY_W, BODY_H);
+      if (!world.boxHitsWall(screen, candidate) && !this.blockedByEnemy(candidate, enemies)) this.x = nx;
     }
     if (dy !== 0) {
       const ny = this.y + dy;
-      if (!world.boxHitsWall(screen, box(this.x, ny, BODY_W, BODY_H))) this.y = ny;
+      const candidate = box(this.x, ny, BODY_W, BODY_H);
+      if (!world.boxHitsWall(screen, candidate) && !this.blockedByEnemy(candidate, enemies)) this.y = ny;
     }
   }
 
