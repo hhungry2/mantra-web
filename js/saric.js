@@ -58,7 +58,8 @@ export class Saric {
     this.swing = 0;
     this.cooldown = 0;
     this.rangedCooldown = 0;
-    this.invuln = 0;
+    this.woundCounter = 0;
+    this.incrementalDamageCounter = 0;
     this.terrainCooldown = 0;
     this.messageCounter = 0;
     this.debugMode = false;
@@ -76,6 +77,15 @@ export class Saric {
 
   get speedBonus() {
     return this.weaponBonus('speed') + this.offhandBonus('speed') + this.armorBonus('speed');
+  }
+
+  // Dialogs.c:1584-1585
+  get immunities() {
+    return (this.weapon?.immunities || 0) | (this.offhand?.immunities || 0) | (this.armor?.immunities || 0);
+  }
+
+  get damageType() {
+    return (this.weapon?.damageType || 0) | (this.offhand?.damageType || 0) | (this.armor?.damageType || 0);
   }
 
   weaponBonus(field) {
@@ -183,21 +193,46 @@ export class Saric {
     return true;
   }
 
-  hurt(rawAmount, fromX, fromY) {
-    if (this.debugMode || this.invuln > 0 || this.dead) return false;
-    const actualDamage = Math.max(1, rawAmount - this.defense);
-    this.hp = Math.max(0, this.hp - actualDamage);
-    this.invuln = INVULN_FRAMES;
-    const dx = this.x - fromX;
-    const dy = this.y - fromY;
-    const len = Math.hypot(dx, dy) || 1;
-    this.knock = { x: (dx / len) * 5, y: (dy / len) * 5 };
-    if (this.hp === 0) this.dead = true;
-    return true;
+  // EnemyCollision.c:512-540
+  hurt(rawDamage, damageType = 0, fromX = null, fromY = null, isDying = false) {
+    if (this.debugMode || this.dead) return false;
+    if (this.woundCounter > 0) return false;
+
+    let i = rawDamage - this.defense;
+
+    // EnemyCollision.c:518-528: incrementalDamageCounter for absorbed hits
+    if (i <= 0 && !isDying) {
+      this.incrementalDamageCounter++;
+      this.woundCounter = 10;
+      if (this.incrementalDamageCounter >= 5) {
+        i = 1;
+        this.incrementalDamageCounter = 0;
+      }
+    }
+
+    // EnemyCollision.c:533: damage done if i > 0 and not immune
+    const checkImmunity = (damageType & (~this.immunities)) !== 0;
+    if (i > 0 && checkImmunity) {
+      this.hp = Math.max(0, this.hp - i);
+      this.woundCounter = 1;
+      if (this.hp === 0) this.dead = true;
+      if (fromX !== null && fromY !== null) {
+        const dx = this.x - fromX;
+        const dy = this.y - fromY;
+        const len = Math.hypot(dx, dy) || 1;
+        this.knock = { x: (dx / len) * 5, y: (dy / len) * 5 };
+      }
+      return true;
+    }
+    return false;
   }
 
   update(input, world, screen) {
-    if (this.invuln > 0) this.invuln--;
+    // Input.c:693-701: woundCounter
+    if (this.woundCounter > 0) {
+      this.woundCounter++;
+      if (this.woundCounter > 30) this.woundCounter = 0;
+    }
     if (this.terrainCooldown > 0) this.terrainCooldown--;
     if (this.messageCounter > 0) {
       this.messageCounter++;

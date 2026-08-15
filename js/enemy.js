@@ -105,10 +105,14 @@ export class Enemy {
     return this.sprite - 2000 + this.frameOffset;
   }
 
-  hurt(amount, fromX, fromY) {
+  hurt(amount, damageType = 0, fromX = 0, fromY = 0) {
     if (!this.killable) return false;
-    const actual = Math.max(1, amount - Math.max(0, this.armor));
-    this.hp -= actual;
+    const netDamage = amount - Math.max(0, this.armor);
+    // Input.c:869: CHECK_IMMUNITIES(next->immunities, g_Saric.damageType)
+    const checkImmunity = (damageType & (~this.immunities)) !== 0;
+    if (netDamage <= 0 || !checkImmunity) return false;
+
+    this.hp -= netDamage;
     this.flash = HIT_FLASH;
     this.legCounter = 0; // Input.c:879: enemy legCounter reset to 0 on hit
     const dx = this.x - fromX;

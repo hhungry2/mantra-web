@@ -110,7 +110,7 @@ export class Renderer {
       }
     }
 
-    if (!player.dead && !(player.invuln > 0 && player.invuln % 4 < 2)) {
+    if (!player.dead && !(player.woundCounter > 0 && player.woundCounter % 4 < 2)) {
       const frames = player.frames();
       drawables.push({
         y: player.y,

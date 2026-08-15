@@ -295,7 +295,7 @@ class Game {
     for (const enemy of this.enemies) {
       if (enemy.dead || spared.has(enemy.ai)) continue;
       if (!(enemy.attributes & ATTR.IS_ENEMY) || !(enemy.attributes & ATTR.KILLABLE)) continue;
-      const killed = enemy.hurt(20, this.player.x, this.player.y);
+      const killed = enemy.hurt(20, 253, this.player.x, this.player.y);
       if (killed) this.defeat(enemy);
     }
     this.audio.play('sword');
@@ -416,7 +416,7 @@ class Game {
           if (target.dead || target === enemy || !(target.attributes & ATTR.IS_ENEMY)) continue;
           if (!target.killable || target.ai === AI.DOOR) continue;
           if (overlaps(enemy.body, target.body)) {
-            const killed = target.hurt(enemy.damage, enemy.x, enemy.y);
+            const killed = target.hurt(enemy.damage, enemy.damageType, enemy.x, enemy.y);
             this.audio.play(killed ? 'kill' : 'hit');
             if (killed) this.defeat(target);
             enemy.dead = true;
@@ -458,13 +458,13 @@ class Game {
 
       // Locked doors cannot be cut or shot open; only a key opens them.
       if (sword && enemy.killable && enemy.ai !== AI.DOOR && enemy.flash === 0 && overlaps(sword, enemy.body)) {
-        const killed = enemy.hurt(player.attack, player.x, player.y);
+        const killed = enemy.hurt(player.attack, player.damageType, player.x, player.y);
         this.audio.play(killed ? 'kill' : 'hit');
         if (killed) this.defeat(enemy);
       }
 
       if (!enemy.dead && enemy.damage > 0 && overlaps(player.body, enemy.body)) {
-        if (player.hurt(enemy.damage, enemy.x, enemy.y)) {
+        if (player.hurt(enemy.damage, enemy.damageType, enemy.x, enemy.y, enemy.ai === AI.DYING)) {
           this.audio.play(player.dead ? 'die' : 'hurt');
         }
         if (enemy.attributes & ATTR.IS_MISSILE) {
