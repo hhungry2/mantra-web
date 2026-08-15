@@ -75,11 +75,23 @@ class Game {
     this.input.on('KeyI', () => this.ui.toggleInventory());
     this.input.on('Tab', () => this.ui.toggleInventory());
     this.input.on('KeyV', () => this.ui.toggleSave());
+    this.input.on('KeyH', () => this.ui.toggleHelp());
+
+    this.input.on('Escape', () => {
+      if (this.ui.helpOpen) this.ui.toggleHelp(false);
+      else if (this.ui.inventoryOpen) this.ui.toggleInventory(false);
+      else if (this.ui.shopOpen) this.ui.toggleShop(false);
+      else if (this.ui.saveOpen) this.ui.toggleSave(false);
+      else if (this.ui.dialogActive) this.ui.hideDialog();
+    });
 
     // Space is the sword. It only doubles as "dismiss" while a panel is up,
     // and then the press is swallowed so closing a box does not also swing.
     this.input.on('Space', () => {
-      if (this.ui.dialogActive) {
+      if (this.ui.helpOpen) {
+        this.ui.toggleHelp(false);
+        this.input.consumeAttack();
+      } else if (this.ui.dialogActive) {
         this.ui.hideDialog();
         this.input.consumeAttack();
       }
@@ -91,7 +103,8 @@ class Game {
     });
 
     this.input.on('Enter', () => {
-      if (this.ui.dialogActive) this.ui.hideDialog();
+      if (this.ui.helpOpen) this.ui.toggleHelp(false);
+      else if (this.ui.dialogActive) this.ui.hideDialog();
     });
   }
 
@@ -347,7 +360,7 @@ class Game {
   tick() {
     this.frame++;
 
-    if (this.ui.inventoryOpen || this.ui.shopOpen || this.ui.saveOpen || this.ui.dialogActive) return;
+    if (this.ui.inventoryOpen || this.ui.shopOpen || this.ui.saveOpen || this.ui.dialogActive || this.ui.helpOpen) return;
 
     const player = this.player;
     player.update(this.input, this.world, this.screen);

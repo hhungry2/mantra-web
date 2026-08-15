@@ -40,6 +40,7 @@ export class UI {
     this.inventoryOpen = false;
     this.shopOpen = false;
     this.saveOpen = false;
+    this.helpOpen = false;
 
     this.createElements();
   }
@@ -136,6 +137,23 @@ export class UI {
     `;
     container.appendChild(this.saveEl);
 
+    // 5. Help Modal (Dialogs.c:286-311, Utils.c:281-297)
+    this.helpEl = document.createElement('div');
+    this.helpEl.id = 'help-modal';
+    this.helpEl.className = 'ui-overlay hidden';
+    this.helpEl.innerHTML = `
+      <div class="modal-box help-modal-box">
+        <div class="modal-header">
+          <h2>${t('HELP')}</h2>
+          <button id="help-close-btn" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body help-body" style="text-align:center;padding:10px;">
+          <img src="assets/ui/help.png" alt="Help" style="max-width:100%;height:auto;image-rendering:pixelated;" />
+        </div>
+      </div>
+    `;
+    container.appendChild(this.helpEl);
+
     this.bindEvents();
   }
 
@@ -143,6 +161,10 @@ export class UI {
     document.getElementById('inv-close-btn').addEventListener('click', () => this.toggleInventory(false));
     document.getElementById('shop-close-btn').addEventListener('click', () => this.toggleShop(false));
     document.getElementById('save-close-btn').addEventListener('click', () => this.toggleSave(false));
+    document.getElementById('help-close-btn').addEventListener('click', () => this.toggleHelp(false));
+    this.helpEl.addEventListener('click', (e) => {
+      if (e.target === this.helpEl) this.toggleHelp(false);
+    });
 
     this.invEl.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -173,10 +195,12 @@ export class UI {
     this.inventoryOpen = show !== undefined ? show : !this.inventoryOpen;
     if (this.inventoryOpen) {
       this.shopOpen = false;
+      this.helpOpen = false;
       if (this.saveOpen) this.game.audio.unmute();
       this.saveOpen = false;
       this.shopEl.classList.add('hidden');
       this.saveEl.classList.add('hidden');
+      this.helpEl.classList.add('hidden');
       this.hideDialog();
       this.updateStatsDisplay();
       this.renderInventoryItems();
@@ -190,10 +214,12 @@ export class UI {
     this.shopOpen = show !== undefined ? show : !this.shopOpen;
     if (this.shopOpen) {
       this.inventoryOpen = false;
+      this.helpOpen = false;
       if (this.saveOpen) this.game.audio.unmute();
       this.saveOpen = false;
       this.invEl.classList.add('hidden');
       this.saveEl.classList.add('hidden');
+      this.helpEl.classList.add('hidden');
       this.hideDialog();
       this.renderShopItems();
       this.shopEl.classList.remove('hidden');
@@ -209,14 +235,34 @@ export class UI {
       this.game.audio.mute();
       this.inventoryOpen = false;
       this.shopOpen = false;
+      this.helpOpen = false;
       this.invEl.classList.add('hidden');
       this.shopEl.classList.add('hidden');
+      this.helpEl.classList.add('hidden');
       this.hideDialog();
       this.renderSaveSlots();
       this.saveEl.classList.remove('hidden');
     } else {
       this.game.audio.unmute();
       this.saveEl.classList.add('hidden');
+    }
+  }
+
+  // Dialogs.c:286-311, Utils.c:281-297
+  toggleHelp(show) {
+    this.helpOpen = show !== undefined ? show : !this.helpOpen;
+    if (this.helpOpen) {
+      this.inventoryOpen = false;
+      this.shopOpen = false;
+      if (this.saveOpen) this.game.audio.unmute();
+      this.saveOpen = false;
+      this.invEl.classList.add('hidden');
+      this.shopEl.classList.add('hidden');
+      this.saveEl.classList.add('hidden');
+      this.hideDialog();
+      this.helpEl.classList.remove('hidden');
+    } else {
+      this.helpEl.classList.add('hidden');
     }
   }
 
