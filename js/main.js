@@ -302,16 +302,23 @@ class Game {
     const [dx, dy] = DIR_VECTORS[player.dir];
     const reach = 16;
     const hit = box(player.x + dx * reach, player.y + dy * reach, 28, 28);
-    const door = this.enemies.find((e) => !e.dead && e.ai === AI.DOOR && overlaps(hit, e.doorBlock || e.body));
-    if (!door) {
+    const doors = this.enemies.filter((e) => !e.dead && e.ai === AI.DOOR && overlaps(hit, e.doorBlock || e.body));
+    if (doors.length === 0) {
       this.hudNote = t('NOTHING HERE');
       this.noteUntil = this.frame + 25;
       return false;
     }
-    door.dead = true;
+
+    // Unlock ALL door entities at this location (handles duplicate door slots in map data)
+    for (const door of doors) {
+      door.dead = true;
+      if (door.slotIndex >= 0) {
+        this.defeatedMasks[this.screenIndex] |= (1 << door.slotIndex);
+      }
+      this.world.closedDoors = this.world.closedDoors.filter((b) => b !== door.doorBlock);
+    }
+
     this.audio.play('key');
-    this.defeatedMasks[this.screenIndex] |= (1 << door.slotIndex);
-    this.world.closedDoors = this.world.closedDoors.filter((b) => b !== door.doorBlock);
 
     // Consume 1 key from inventory quantity
     const keyItem = player.inventory.find((i) => i.code === 150);
