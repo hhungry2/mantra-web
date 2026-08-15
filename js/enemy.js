@@ -214,12 +214,20 @@ export class Corpse {
   }
 }
 
-export function spawnScreen(screen, defeatedMask = 0) {
+// Map.c:96-107: enemy spawning and permanent enemy 1/16 respawn
+export function spawnScreen(screen, defeatedMask = 0, onRespawn = null) {
   const enemies = [];
   if (!screen || !screen.enemies) return enemies;
   screen.enemies.forEach((record, index) => {
     const slotIndex = record.slot ?? index;
-    if (defeatedMask & (1 << slotIndex)) return;
+    if (defeatedMask & (1 << slotIndex)) {
+      // Map.c:99: if permanent and (rand & 0x0F == 0) (1/16 chance), respawn
+      if ((record.attributes & ATTR.PERMANENT) && Math.floor(Math.random() * 16) === 0) {
+        if (onRespawn) onRespawn(slotIndex);
+      } else {
+        return;
+      }
+    }
     enemies.push(new Enemy(record, slotIndex));
   });
   return enemies;

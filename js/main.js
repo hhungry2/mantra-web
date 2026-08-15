@@ -101,7 +101,9 @@ class Game {
     this.screen = this.world.screen(index);
     // Bosses need no special casing: they sit in the screen's own enemy slots
     // with a movementType of 50 or above.
-    this.enemies = spawnScreen(this.screen, this.defeatedMasks[index]);
+    this.enemies = spawnScreen(this.screen, this.defeatedMasks[index], (slotIndex) => {
+      this.defeatedMasks[index] &= ~(1 << slotIndex);
+    });
     this.corpses = [];
     // Locked doors keep their bodies on the movement collision layer until
     // a key opens them. Bodies are captured once and reused by reference.
