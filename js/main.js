@@ -271,6 +271,13 @@ class Game {
     }
   }
 
+  collectDrop(corpse) {
+    if (!corpse || !corpse.drop) return;
+    const drop = corpse.drop;
+    corpse.drop = null;
+    this.giveDrop(drop);
+  }
+
   winGame() {
     if (this.victory) return;
     this.victory = true;
