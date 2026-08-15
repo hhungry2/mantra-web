@@ -94,6 +94,26 @@ export class World {
     return false;
   }
 
+  // EnemyUpdate.c:177-190: check if all overlapping tiles are non-standable
+  isBoxFullyUnstandable(screen, b) {
+    const left = Math.max(0, Math.floor(b.x / TILE));
+    const right = Math.min(SCREEN_COLS - 1, Math.floor((b.x + b.w - 1) / TILE));
+    const top = Math.max(0, Math.floor(b.y / TILE));
+    const bottom = Math.min(SCREEN_ROWS - 1, Math.floor((b.y + b.h - 1) / TILE));
+    let numTests = 0;
+    let numNonStandable = 0;
+    for (let ty = top; ty <= bottom; ty++) {
+      for (let tx = left; tx <= right; tx++) {
+        numTests++;
+        const mod = this.modifierAt(screen, tx, ty);
+        if ((mod & MOD.STANDABLE) === 0) {
+          numNonStandable++;
+        }
+      }
+    }
+    return numTests > 0 && numNonStandable === numTests;
+  }
+
   // The original checks every tile Saric overlaps. `special` is signed: a
   // negative value heals, while a positive value damages. The original loop
   // only visits the first eight map rows, including that quirk here.

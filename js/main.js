@@ -482,11 +482,12 @@ class Game {
     this.enemies = this.enemies.filter((e) => !e.dead);
 
     // Dying bodies from defeated enemies.
+    // EnemyUpdate.c:177-190: auto-pickup if all overlapping tiles are non-standable
     for (const corpse of this.corpses) {
       if (corpse.dead) continue;
       corpse.update();
       if (corpse.dead) continue;
-      if (corpse.drop && corpse.legCounter === 14 && this.world.boxHitsWall(this.screen, corpse.body)) {
+      if (corpse.drop && corpse.legCounter === 14 && this.world.isBoxFullyUnstandable(this.screen, corpse.body)) {
         this.collectDrop(corpse);
         continue;
       }
