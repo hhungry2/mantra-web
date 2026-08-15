@@ -330,15 +330,12 @@ export class UI {
               this.game.hudNote = t('RECOVERED {n} HP!', { n: result.healedHp });
             } else if (result.restoredStamina > 0) {
               this.game.hudNote = t('RECOVERED {n} STAMINA!', { n: Math.round(result.restoredStamina) });
+            } else {
+              this.game.hudNote = t('HP is already full!');
             }
             this.game.noteUntil = this.game.frame + 40;
             this.updateStatsDisplay();
             this.renderInventoryItems();
-          } else if (result && result.reason === 'full') {
-            btn.classList.add('shake');
-            setTimeout(() => btn.classList.remove('shake'), 400);
-            this.game.hudNote = t('HP is already full!');
-            this.game.noteUntil = this.game.frame + 40;
           }
         });
         actionsEl.appendChild(btn);

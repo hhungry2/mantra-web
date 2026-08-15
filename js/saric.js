@@ -179,13 +179,6 @@ export class Saric {
     if (idx < 0) return { success: false, reason: 'not_found' };
     if (!item.heal && item.stamina >= 0) return { success: false, reason: 'not_usable' };
 
-    const hpNeeded = item.heal > 0 && this.hp < this.hpMax;
-    const stNeeded = item.stamina < 0 && this.stamina < this.staminaMax;
-
-    if (!hpNeeded && !stNeeded && (item.heal > 0 || item.stamina < 0)) {
-      return { success: false, reason: 'full' };
-    }
-
     let healedHp = 0;
     let restoredStamina = 0;
 
