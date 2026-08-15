@@ -17,10 +17,6 @@ import { initItems, getItem, FLAG } from './items.js';
 import { TouchControls } from './touch.js';
 import { t, getLang, setLang, localizeBossName, applyDocumentStrings } from './i18n.js';
 
-// Shopfront tiles. Which of the five shops a door leads to is not recorded,
-// so the storefront art picks one and a given door always opens the same.
-const SHOP_TILE_BASE = 1030;
-
 // How close Saric has to stand to read a signpost.
 const READ_RANGE = 40;
 
@@ -156,83 +152,39 @@ class Game {
 
     const position = d.playerPos || {};
     const startX = START_TILE.x * TILE + TILE / 2;
+
+    if (d.inventoryCodes) {
+      this.player.inventory = d.inventoryCodes.map((code) => getItem(code)).filter(Boolean);
+    }
+
+    if (d.defeatedMasks) {
+      this.defeatedMasks = new Uint16Array(d.defeatedMasks);
+    }
+
+    const position = d.playerPos || {};
+    const startX = START_TILE.x * TILE + TILE / 2;
     const startY = START_TILE.y * TILE + TILE / 2;
     this.enter(d.screenIndex ?? START_SCREEN, position.x ?? startX, position.y ?? startY);
     this.hudNote = t('GAME LOADED!');
     this.noteUntil = this.frame + 60;
   }
 
-  // StoreData contains stock and prices, but no map-door association. The
-  // extracted storefront tile IDs provide the shop index; underworld doors
-  // use the same artwork range and must not open a shop.
-  storeAt(tile, mod) {
-    if (!(mod & MOD.IS_DOOR) || (mod & MOD.LEADS_TO_UNDERWORLD)) return null;
-    const index = tile - SHOP_TILE_BASE;
-    if (index < 0 || index >= this.stores.length) return null;
-    return this.stores[index];
-  }
-
   checkInteract() {
     const player = this.player;
-    const tx = Math.max(0, Math.min(15, Math.floor(player.x / TILE)));
-    const ty = Math.max(0, Math.min(9, Math.floor(player.y / TILE)));
-    const mod = this.world.modifierAt(this.screen, tx, ty);
-    const tile = this.world.tileAt(this.screen, tx, ty);
-
-    // Signposts and the people standing about are enemies that carry a message
-    // number into TextData.
+    // Signposts and speaking NPCs carry a message number into textMsgs
     const speaker = this.enemies.find((e) => e.message > 0
       && Math.hypot(e.x - player.x, e.y - player.y) < READ_RANGE);
     if (speaker) {
-      const text = this.textMsgs[speaker.message - 1];
+      let text = this.textMsgs[speaker.message - 1] || '';
+      // Dialogs.c:186: message 5 appends deadItem name
+      if (speaker.message === 5 && speaker.drop) {
+        const dropItem = getItem(speaker.drop);
+        if (dropItem) text += dropItem.name;
+      }
       if (text) {
         this.ui.showDialog('', text);
         return;
       }
-    }
-
-    const store = this.storeAt(tile, mod);
-    if (store) {
-      this.currentStore = store;
-      this.ui.toggleShop(true);
-      return;
-    }
-
-    this.hudNote = t('NOTHING HERE');
-    this.noteUntil = this.frame + 25;
-  }
-
-  // Chests and the things lying about are enemies flagged canBeHeld: walking
-  // into one hands over whatever deadItem names.
-    const index = tile - SHOP_TILE_BASE;
-    if (index < 0 || index >= this.stores.length) return null;
-    return this.stores[index];
-  }
-
-  checkInteract() {
-    const player = this.player;
-    const tx = Math.max(0, Math.min(15, Math.floor(player.x / TILE)));
-    const ty = Math.max(0, Math.min(9, Math.floor(player.y / TILE)));
-    const mod = this.world.modifierAt(this.screen, tx, ty);
-    const tile = this.world.tileAt(this.screen, tx, ty);
-
-    // Signposts and the people standing about are enemies that carry a message
-    // number into TextData.
-    const speaker = this.enemies.find((e) => e.message > 0
-      && Math.hypot(e.x - player.x, e.y - player.y) < READ_RANGE);
-    if (speaker) {
-      const text = this.textMsgs[speaker.message - 1];
-      if (text) {
-        this.ui.showDialog('', text);
-        return;
-      }
-    }
-
-    const store = this.storeAt(tile, mod);
-    if (store) {
-      this.currentStore = store;
-      this.ui.toggleShop(true);
-      return;
     }
 
     this.hudNote = t('NOTHING HERE');
@@ -259,7 +211,12 @@ class Game {
     this.hudNote = t('FOUND {name}', { name: item.name.toUpperCase() });
     this.noteUntil = this.frame + 50;
 
-    const text = enemy.message > 0 ? this.textMsgs[enemy.message - 1] : null;
+    let text = enemy.message > 0 ? (this.textMsgs[enemy.message - 1] || '') : null;
+    // Dialogs.c:186: message 5 appends deadItem name
+    if (text && enemy.message === 5 && enemy.drop) {
+      const dropItem = getItem(enemy.drop);
+      if (dropItem) text += dropItem.name;
+    }
     if (text) this.ui.showDialog('', text);
   }
 
@@ -481,6 +438,31 @@ class Game {
 
       if (enemy.holdable && overlaps(player.body, enemy.body)) {
         this.collect(enemy);
+        continue;
+      }
+
+      // Shop contact trigger (EnemyCollision.c:462-474, Dialogs.c:1762)
+      if (enemy.message < 0 && !player.messageCounter && overlaps(player.body, enemy.body)) {
+        player.messageCounter = 1;
+        const storeIdx = -(enemy.message + 1);
+        if (this.stores[storeIdx]) {
+          this.currentStore = this.stores[storeIdx];
+          this.ui.toggleShop(true);
+        }
+        continue;
+      }
+
+      // Dialog contact trigger (EnemyCollision.c:462-474, Dialogs.c:186)
+      if (enemy.message > 0 && !enemy.holdable && !player.messageCounter && overlaps(player.body, enemy.body)) {
+        player.messageCounter = 1;
+        let text = this.textMsgs[enemy.message - 1] || '';
+        if (enemy.message === 5 && enemy.drop) {
+          const dropItem = getItem(enemy.drop);
+          if (dropItem) text += dropItem.name;
+        }
+        if (text) {
+          this.ui.showDialog('', text);
+        }
         continue;
       }
 

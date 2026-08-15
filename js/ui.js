@@ -166,6 +166,7 @@ export class UI {
   hideDialog() {
     this.dialogActive = false;
     this.dialogEl.classList.add('hidden');
+    if (this.game.player) this.game.player.messageCounter = 1;
   }
 
   toggleInventory(show) {
@@ -198,6 +199,7 @@ export class UI {
       this.shopEl.classList.remove('hidden');
     } else {
       this.shopEl.classList.add('hidden');
+      if (this.game.player) this.game.player.messageCounter = 1;
     }
   }
 

@@ -62,6 +62,7 @@ export class Saric {
     this.rangedCooldown = 0;
     this.invuln = 0;
     this.terrainCooldown = 0;
+    this.messageCounter = 0;
     this.debugMode = false;
     this.knock = null;
     this.dead = false;
@@ -196,6 +197,10 @@ export class Saric {
   update(input, world, screen) {
     if (this.invuln > 0) this.invuln--;
     if (this.terrainCooldown > 0) this.terrainCooldown--;
+    if (this.messageCounter > 0) {
+      this.messageCounter++;
+      if (this.messageCounter > 10) this.messageCounter = 0; // Input.c:704-712
+    }
     if (this.cooldown > 0) this.cooldown--;
     if (this.rangedCooldown > 0) this.rangedCooldown--;
     if (this.swing > 0) this.swing--;
