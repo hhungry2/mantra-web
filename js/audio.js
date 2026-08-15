@@ -127,8 +127,14 @@ export class Audio {
       if (!this.player) {
         this.player = new ModPlayer(this.ctx, this.musicBus);
       }
-      await this.player.load(buf);
+      await this.player.loadBuffer(buf);
+      if (reqId !== this.musicRequest) return;
       this.currentTrack = index;
+      // The worklet's per-sample tanh packs the mix ~1.85dB denser than the
+      // AudioBufferSourceNode graph this used to run, measured across all
+      // nine tracks; trim it back to the level the game had before.
+      this.player.setVolume(0.82);
+      if (this.enabled && !this.muted) this.player.play();
     } catch (err) {
       console.warn(`Could not load music track ${index}:`, err);
     }
