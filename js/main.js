@@ -208,6 +208,16 @@ class Game {
     if (enemy.slotIndex >= 0) {
       this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
     }
+    // Also clear any duplicate chests/items at the exact same location
+    for (const other of this.enemies) {
+      if (other !== enemy && other.holdable && other.x === enemy.x && other.y === enemy.y) {
+        other.dead = true;
+        if (other.slotIndex >= 0) {
+          this.defeatedMasks[this.screenIndex] |= (1 << other.slotIndex);
+        }
+      }
+    }
+
     const item = getItem(enemy.drop);
     if (!item) return;
     const isMoney = !!(item.attributes & FLAG.MONEY);
