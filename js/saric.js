@@ -9,12 +9,8 @@ import {
   ITEM_TYPES, FLAG, getEquipmentSlot, isRangedItem,
 } from './items.js';
 
-
 const WALK_SPEED = 2;
-const RUN_SPEED = 3.5;
-const STAMINA_DRAIN = 1.6;
-const STAMINA_REGEN = 0.7;
-const STAMINA_FLOOR = 6;
+const RUN_SPEED = 6;
 
 const SWING_FRAMES = 8;
 const SWING_COOLDOWN = 4;
@@ -57,6 +53,8 @@ export class Saric {
     this.walkTimer = 0;
     this.moving = false;
     this.running = false;
+    this.sitCounter = 0;
+    this.runCounter = 0;
     this.swing = 0;
     this.cooldown = 0;
     this.rangedCooldown = 0;
@@ -229,14 +227,29 @@ export class Saric {
     if (input.down) dy += 1;
 
     this.moving = dx !== 0 || dy !== 0;
-    this.running = this.moving && input.run && this.stamina > STAMINA_FLOOR;
+    this.running = this.moving && input.run && this.stamina > 0;
 
-    if (this.debugMode) {
-      this.stamina = STAMINA_MAX;
-    } else if (this.running) {
-      this.stamina = Math.max(0, this.stamina - STAMINA_DRAIN);
+    // Input.c:1048, 1060: counter increments
+    if (this.running) {
+      this.runCounter++;
+      this.sitCounter = 0;
     } else {
-      this.stamina = Math.min(STAMINA_MAX, this.stamina + STAMINA_REGEN);
+      this.sitCounter++;
+      this.runCounter = 0;
+    }
+
+    // Input.c:655-675: 30-frame stamina increment/decrement
+    if (this.debugMode) {
+      this.stamina = this.staminaMax;
+    } else {
+      if (this.sitCounter > 30) {
+        this.sitCounter = 0;
+        if (this.stamina < this.staminaMax) this.stamina++;
+      }
+      if (this.runCounter > 30) {
+        this.runCounter = 0;
+        if (this.stamina > 0) this.stamina--;
+      }
     }
 
     if (this.moving) {
@@ -245,11 +258,11 @@ export class Saric {
       if (dx < 0) this.dir = DIR_LEFT;
       else if (dx > 0) this.dir = DIR_RIGHT;
 
-      const walkSpeed = WALK_SPEED + this.speedBonus;
-      const runSpeed = RUN_SPEED + this.speedBonus;
+      // Input.c:1032-1050: speed 6 when running, 2 when walking (+ speedBonus)
+      const baseSpeed = this.running ? RUN_SPEED : WALK_SPEED;
       const speed = this.debugMode
-        ? walkSpeed * (this.running ? 4 : 2)
-        : (this.running ? runSpeed : walkSpeed);
+        ? (baseSpeed + this.speedBonus) * 2
+        : (baseSpeed + this.speedBonus);
       const len = Math.hypot(dx, dy) || 1;
       this.step(world, screen, (dx / len) * speed, (dy / len) * speed);
       this.walkTimer++;
