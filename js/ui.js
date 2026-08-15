@@ -372,7 +372,6 @@ export class UI {
         if (this.game.player.gold >= entry.price) {
           this.game.player.gold -= entry.price;
           this.game.player.addItem(item);
-          this.game.audio.play('hit');
           this.renderShopItems();
         }
       });
