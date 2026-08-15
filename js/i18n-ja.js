@@ -18,6 +18,7 @@ export default {
     'Resume': '再開',
     'Language': '言語',
     'DEBUG MODE: HP / DASH': 'デバッグモード: HP / ダッシュ',
+    'Warp': '移動',
     'CONTINUE': '続ける',
     'Loading assets...': 'アセットを読み込み中…',
     'Could not load assets: {err}': 'アセットを読み込めませんでした: {err}',

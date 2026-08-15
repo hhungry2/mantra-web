@@ -765,6 +765,37 @@ async function boot() {
 
   debugToggle.addEventListener('change', applyDebugMode);
 
+  const screenInput = document.getElementById('debug-screen-input');
+  const warpButton = document.getElementById('debug-warp-btn');
+
+  const handleWarp = async () => {
+    if (!screenInput) return;
+    const target = parseInt(screenInput.value, 10);
+    if (!isNaN(target) && target >= 0 && target < game.world.screens.length) {
+      applyDebugMode();
+      overlay.classList.add('hidden');
+      story.classList.add('hidden');
+      if (!gameStarted) {
+        await startGame();
+      }
+      game.enter(target);
+      game.audio.playMusic(game.world.musicIndexAt(game.screen));
+      game.hudNote = t('SCREEN {n} ({x},{y})', {
+        n: target,
+        x: target % 16,
+        y: Math.floor(target / 16),
+      });
+      game.noteUntil = game.frame + 60;
+    }
+  };
+
+  if (warpButton) warpButton.addEventListener('click', handleWarp);
+  if (screenInput) {
+    screenInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleWarp();
+    });
+  }
+
   button.addEventListener('click', () => {
     applyDebugMode();
     overlay.classList.add('hidden');

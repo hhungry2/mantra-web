@@ -41,10 +41,16 @@
 
   </main>
 
-  <label class="debug-toggle">
-    <input id="debug-mode" type="checkbox">
-    <span data-i18n="DEBUG MODE: HP / DASH">DEBUG MODE: HP / DASH</span>
-  </label>
+  <div class="debug-controls">
+    <label class="debug-toggle">
+      <input id="debug-mode" type="checkbox">
+      <span data-i18n="DEBUG MODE: HP / DASH">DEBUG MODE: HP / DASH</span>
+    </label>
+    <div class="debug-warp">
+      <input id="debug-screen-input" type="number" min="0" max="255" placeholder="0-255" aria-label="画面番号" title="画面番号 (0-255)">
+      <button id="debug-warp-btn" type="button" class="debug-warp-button" data-i18n="Warp">移動</button>
+    </div>
+  </div>
 
   <footer id="controls-guide">
     <div><span class="key-badge">Arrow / WASD</span> 移動</div>
