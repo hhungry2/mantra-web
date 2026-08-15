@@ -155,8 +155,9 @@ class Game {
     this.player.baseDefense = d.baseDefense;
 
     this.player.weapon = d.weaponCode ? getItem(d.weaponCode) : null;
-    this.player.offhand = d.offhandCode ? getItem(d.offhandCode) : null;
+    this.player.special = d.specialCode ? getItem(d.specialCode) : null;
     this.player.armor = d.armorCode ? getItem(d.armorCode) : null;
+    this.player.rings = (d.ringCodes || []).map((code) => getItem(code)).filter(Boolean);
 
     if (d.inventoryCodes) {
       this.player.inventory = d.inventoryCodes.map((code) => getItem(code)).filter(Boolean);
@@ -339,8 +340,8 @@ class Game {
         if (idx >= 0) player.inventory.splice(idx, 1);
       }
     }
-    if (player.offhand?.code === 150 && !player.inventory.some((i) => i.code === 150)) {
-      player.offhand = null;
+    if (player.special?.code === 150 && !player.inventory.some((i) => i.code === 150)) {
+      player.special = null;
     }
 
     this.hudNote = t('UNLOCKED!');
@@ -440,8 +441,8 @@ class Game {
       }
     }
 
-    if (player.offhandFiredThisFrame) {
-      const item = player.offhandFiredThisFrame;
+    if (player.specialFiredThisFrame) {
+      const item = player.specialFiredThisFrame;
       const template = this.templates.get(item.fires);
       if (template) {
         const [dx, dy] = DIR_VECTORS[player.dir];
@@ -896,6 +897,29 @@ async function boot() {
   storyButton.addEventListener('click', async () => {
     story.classList.add('hidden');
     await startGame();
+  });
+
+  // Stop/pause audio when tab is backgrounded, hidden, or page is navigating away
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      game.audio.pause();
+    } else {
+      game.audio.resume();
+    }
+  });
+
+  window.addEventListener('pagehide', () => {
+    game.audio.pause();
+  });
+
+  window.addEventListener('blur', () => {
+    game.audio.pause();
+  });
+
+  window.addEventListener('focus', () => {
+    if (!document.hidden) {
+      game.audio.resume();
+    }
   });
 }
 

@@ -69,6 +69,13 @@ export class Audio {
     if (this.master) {
       this.master.gain.value = this.enabled ? 0.7 : 0;
     }
+    if (this.player) {
+      if (this.enabled && !this.muted && !this.paused) {
+        try { this.player.play(); } catch (_) {}
+      } else {
+        try { this.player.stop(); } catch (_) {}
+      }
+    }
     return this.enabled;
   }
 
@@ -79,6 +86,9 @@ export class Audio {
       this.savedGain = this.master.gain.value;
       this.master.gain.value = 0;
     }
+    if (this.player) {
+      try { this.player.stop(); } catch (_) {}
+    }
   }
 
   unmute() {
@@ -86,6 +96,31 @@ export class Audio {
     this.muted = false;
     if (this.master && this.enabled) {
       this.master.gain.value = this.savedGain !== undefined ? this.savedGain : 0.7;
+    }
+    if (this.player && this.enabled && !this.paused) {
+      try { this.player.play(); } catch (_) {}
+    }
+  }
+
+  pause() {
+    if (this.paused) return;
+    this.paused = true;
+    if (this.player) {
+      try { this.player.stop(); } catch (_) {}
+    }
+    if (this.ctx && this.ctx.state === 'running') {
+      this.ctx.suspend().catch(() => {});
+    }
+  }
+
+  resume() {
+    if (!this.paused) return;
+    this.paused = false;
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
+    if (this.player && this.enabled && !this.muted) {
+      try { this.player.play(); } catch (_) {}
     }
   }
 
