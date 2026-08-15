@@ -19,9 +19,15 @@
 ローカルで動かすには、リポジトリ直下で HTTP サーバを立ててブラウザで開いてください(ESモジュールのため `file://` では動きません)。
 
 ```bash
+# 【推奨】Node.js サーバー (キャッシュ無効化・デュアルスタック対応)
+node tools/server.js
+
+# または Python サーバー
 python -m http.server 8123
 ```
 
+ブラウザで `http://localhost:8123/` を開きます。
+詳細な操作方法やデバッグコマンドは [docs/START_GUIDE.md](docs/START_GUIDE.md) を参照してください。
 移植の詳細な計画は [docs/PLAN.md](docs/PLAN.md) を参照してください。
 
 ## オリジナルについて

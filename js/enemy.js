@@ -27,7 +27,6 @@ const BODY_W = 20;
 const BODY_H = 16;
 const BOSS_BODY = 64;
 const HIT_FLASH = 6;
-const KNOCK_FRAMES = 5;
 
 // The data stores speed in the original's units; a plain wanderer is 1.
 const SPEED_SCALE = 0.7;
@@ -77,8 +76,13 @@ export class Enemy {
     this.cooldown = 0;
     this.animTimer = 0;
     this.flash = 0;
-    this.knock = null;
     this.dead = false;
+
+    // Boss & specialized movement state (EnemyUpdate.c)
+    this.theta = 0;
+    this.disFromUnitCircle = 100;
+    this.stuckCounter = 0;
+    this.angledCourse = null;
   }
 
   get body() {
@@ -105,7 +109,7 @@ export class Enemy {
     return this.sprite - 2000 + this.frameOffset;
   }
 
-  hurt(amount, damageType = 0, fromX = 0, fromY = 0) {
+  hurt(amount, damageType = 0) {
     if (!this.killable) return false;
     const netDamage = amount - Math.max(0, this.armor);
     // Input.c:869: CHECK_IMMUNITIES(next->immunities, g_Saric.damageType)
@@ -115,10 +119,6 @@ export class Enemy {
     this.hp -= netDamage;
     this.flash = HIT_FLASH;
     this.legCounter = 0; // Input.c:879: enemy legCounter reset to 0 on hit
-    const dx = this.x - fromX;
-    const dy = this.y - fromY;
-    const len = Math.hypot(dx, dy) || 1;
-    this.knock = { x: (dx / len) * 4, y: (dy / len) * 4, frames: KNOCK_FRAMES };
     if (this.hp <= 0) this.dead = true;
     return this.dead;
   }
@@ -126,12 +126,6 @@ export class Enemy {
   update(ctx) {
     this.animTimer++;
     if (this.flash > 0) this.flash--;
-    if (this.knock) {
-      ctx.move(this, this.knock.x, this.knock.y);
-      this.knock.frames--;
-      if (this.knock.frames <= 0) this.knock = null;
-      return;   // staggered enemies do not also walk
-    }
     const wasX = this.x;
     const wasY = this.y;
     run(this, ctx);
@@ -235,23 +229,35 @@ export function spawnScreen(screen, defeatedMask = 0, onRespawn = null) {
 
 // Shared movement helper: axis-separated, so an enemy pinned on one axis can
 // still slide along the other.
+// EnemyCollision.c:594-623: Constrains all enemies to screen [0, 512] x [0, 320].
+// Insubstantial enemies bypass wall checks, but NOT screen boundaries.
 export function makeMover(world, screen) {
   return (entity, dx, dy) => {
     const size = entity.boss ? BOSS_BODY : BODY_W;
     const height = entity.boss ? BOSS_BODY : BODY_H;
+    const isSubstantial = !(entity.attributes & ATTR.INSUBSTANTIAL) && entity.solid !== false;
     let moved = false;
+
     if (dx !== 0) {
       const nx = entity.x + dx;
-      if (!world.boxHitsWall(screen, box(nx, entity.y, size, height))) {
-        entity.x = nx;
-        moved = true;
+      const left = nx - size / 2;
+      const right = nx + size / 2;
+      if (left >= 0 && right <= 512) {
+        if (!isSubstantial || !world.boxHitsWall(screen, box(nx, entity.y, size, height))) {
+          entity.x = nx;
+          moved = true;
+        }
       }
     }
     if (dy !== 0) {
       const ny = entity.y + dy;
-      if (!world.boxHitsWall(screen, box(entity.x, ny, size, height))) {
-        entity.y = ny;
-        moved = true;
+      const top = ny - height / 2;
+      const bottom = ny + height / 2;
+      if (top >= 0 && bottom <= 320) {
+        if (!isSubstantial || !world.boxHitsWall(screen, box(entity.x, ny, size, height))) {
+          entity.y = ny;
+          moved = true;
+        }
       }
     }
     return moved;

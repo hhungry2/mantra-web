@@ -221,7 +221,12 @@ class Game {
       const dropItem = getItem(enemy.drop);
       if (dropItem) text += dropItem.name;
     }
-    if (text) this.ui.showDialog('', text);
+    // EnemyCollision.c:496-499: isMessage items immediately display item description
+    if (text) {
+      this.ui.showDialog('', text);
+    } else if (item && (item.attributes & FLAG.MESSAGE) && item.desc) {
+      this.ui.showDialog('', item.desc);
+    }
   }
 
   // A slain enemy stays slain, hands over its experience, and leaves a dying
@@ -258,6 +263,18 @@ class Game {
     this.audio.play(isMoney ? 'money' : 'item');
     this.hudNote = t('FOUND {name}', { name: item.name.toUpperCase() });
     this.noteUntil = this.frame + 50;
+
+    // EnemyCollision.c:496-499: isMessage items immediately display item description
+    if (item && (item.attributes & FLAG.MESSAGE) && item.desc) {
+      this.ui.showDialog('', item.desc);
+    }
+  }
+
+  winGame() {
+    if (this.victory) return;
+    this.victory = true;
+    this.audio.play('fanfare');
+    this.ui.showDialog(t('VICTORY!'), t('Congratulations! You defeated Zarin and restored peace to Mantra!'));
   }
 
   // Off-hand special items do their thing on the F key. The Key unlocks a
@@ -304,7 +321,7 @@ class Game {
     for (const enemy of this.enemies) {
       if (enemy.dead || spared.has(enemy.ai)) continue;
       if (!(enemy.attributes & ATTR.IS_ENEMY) || !(enemy.attributes & ATTR.KILLABLE)) continue;
-      const killed = enemy.hurt(20, 253, this.player.x, this.player.y);
+      const killed = enemy.hurt(20, 253);
       if (killed) this.defeat(enemy);
     }
     this.audio.play('sword');
@@ -424,6 +441,7 @@ class Game {
       templates: this.templates,
       enemies: this.enemies,
       move: this.move,
+      onWinGame: () => this.winGame(),
     };
     const sword = player.swordBox;
 
@@ -432,6 +450,31 @@ class Game {
       if (enemy.dead) continue;
       enemy.update(ctx);
       if (enemy.dead) continue;
+
+      // Pushable enemies (EnemyCollision.c:980-1076: checkEnemyPushing)
+      if (enemy.attributes & ATTR.PUSHABLE) {
+        let bumpX = enemy.x;
+        let bumpY = enemy.y;
+        switch (player.dir) {
+          case 0: bumpX += 4; break;
+          case 1: bumpX -= 4; break;
+          case 2: bumpY -= 4; break;
+          case 3: bumpY += 4; break;
+        }
+        const bumpBox = box(bumpX, bumpY, enemy.body.w, enemy.body.h);
+        if (overlaps(bumpBox, player.body)) {
+          let pushDx = 0;
+          let pushDy = 0;
+          const speed = enemy.pushableSpeed || 2;
+          switch (player.dir) {
+            case 0: pushDx = -speed; break;
+            case 1: pushDx = speed; break;
+            case 2: pushDy = speed; break;
+            case 3: pushDy = -speed; break;
+          }
+          this.move(enemy, pushDx, pushDy);
+        }
+      }
 
       // Player-fired missiles hit enemies (EnemyCollision.c:678-793:
       // checkEnemyInterceptWithEnemies). Gated on the explicit flag, not on
@@ -442,8 +485,21 @@ class Game {
         for (const target of this.enemies) {
           if (target.dead || target === enemy || !(target.attributes & ATTR.IS_ENEMY)) continue;
           if (!target.killable || target.ai === AI.DOOR) continue;
+          // EnemyCollision.c:723: insubstantial missiles don't affect insubstantial enemies
+          if ((enemy.attributes & ATTR.INSUBSTANTIAL) && (target.attributes & ATTR.INSUBSTANTIAL)) continue;
           if (overlaps(enemy.body, target.body)) {
-            const killed = target.hurt(enemy.damage, enemy.damageType, enemy.x, enemy.y);
+            const killed = target.hurt(enemy.damage, enemy.damageType);
+            // Input.c:881-899 & EnemyCollision.c:749-769: 16px knockback along attacker facing
+            let kx = 0;
+            let ky = 0;
+            switch (enemy.facing) {
+              case 1: kx = 16; break;
+              case 2: ky = 16; break;
+              case 3: kx = -16; break;
+              case 4: ky = -16; break;
+            }
+            if (kx !== 0 || ky !== 0) this.move(target, kx, ky);
+
             this.audio.play(killed ? 'kill' : 'hit');
             if (killed) this.defeat(target);
             // EnemyCollision.c:727-730: only a missile dies on impact.
@@ -487,7 +543,18 @@ class Game {
       // Locked doors cannot be cut or shot open; only a key opens them.
       // Input.c:756, 901: 1 hit per swing with hadHitEnemy
       if (sword && enemy.killable && enemy.ai !== AI.DOOR && enemy.flash === 0 && overlaps(sword, enemy.body)) {
-        const killed = enemy.hurt(player.attack, player.damageType, player.x, player.y);
+        const killed = enemy.hurt(player.attack, player.damageType);
+        // Input.c:881-899: instantaneous 16px knockback in Saric's facing direction
+        let kx = 0;
+        let ky = 0;
+        switch (player.dir) {
+          case 0: kx = -16; break;
+          case 1: kx = 16; break;
+          case 2: ky = 16; break;
+          case 3: ky = -16; break;
+        }
+        if (kx !== 0 || ky !== 0) this.move(enemy, kx, ky);
+
         player.hadHitEnemy = true;
         this.audio.play(killed ? 'kill' : 'hit');
         if (killed) this.defeat(enemy);
