@@ -132,6 +132,7 @@ class Game {
     this.player.hp = d.hp;
     this.player.hpMax = d.hpMax;
     this.player.stamina = d.stamina;
+    this.player.staminaMax = d.staminaMax || 10;
     this.player.xp = d.xp;
     this.player.nextXp = d.nextXp;
     this.player.gold = d.gold;
@@ -141,17 +142,6 @@ class Game {
     this.player.weapon = d.weaponCode ? getItem(d.weaponCode) : null;
     this.player.offhand = d.offhandCode ? getItem(d.offhandCode) : null;
     this.player.armor = d.armorCode ? getItem(d.armorCode) : null;
-
-    if (d.inventoryCodes) {
-      this.player.inventory = d.inventoryCodes.map((code) => getItem(code)).filter(Boolean);
-    }
-
-    if (d.defeatedMasks) {
-      this.defeatedMasks = new Uint16Array(d.defeatedMasks);
-    }
-
-    const position = d.playerPos || {};
-    const startX = START_TILE.x * TILE + TILE / 2;
 
     if (d.inventoryCodes) {
       this.player.inventory = d.inventoryCodes.map((code) => getItem(code)).filter(Boolean);
@@ -591,7 +581,7 @@ async function boot() {
     game.player.debugMode = debugToggle.checked;
     if (debugToggle.checked) {
       game.player.hp = game.player.hpMax;
-      game.player.stamina = 100;
+      game.player.stamina = game.player.staminaMax;
     }
   };
 

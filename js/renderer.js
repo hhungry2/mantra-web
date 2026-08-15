@@ -148,7 +148,7 @@ export class Renderer {
     ctx.fillText('XP', 242, top + 12);
 
     meter(ctx, 28, top + 7, 85, 10, player.hp / player.hpMax, '#e63946');
-    meter(ctx, 145, top + 7, 85, 10, player.stamina / 100, '#48cae4');
+    meter(ctx, 145, top + 7, 85, 10, player.stamina / (player.staminaMax || 10), '#48cae4');
     meter(ctx, 262, top + 7, 50, 10, player.xp / player.nextXp, '#a855f7');
 
     meterValue(ctx, 28, top + 7, 85, 10, Math.ceil(player.hp));

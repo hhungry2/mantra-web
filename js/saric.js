@@ -9,14 +9,12 @@ import {
   ITEM_TYPES, FLAG, getEquipmentSlot, isRangedItem,
 } from './items.js';
 
+
 const WALK_SPEED = 2;
 const RUN_SPEED = 3.5;
-const STAMINA_MAX = 100;
 const STAMINA_DRAIN = 1.6;
 const STAMINA_REGEN = 0.7;
 const STAMINA_FLOOR = 6;
-// Potions are worth 5..15 fatigue points on a 0..100 bar.
-const STAMINA_PER_POINT = 5;
 
 const SWING_FRAMES = 8;
 const SWING_COOLDOWN = 4;
@@ -33,18 +31,20 @@ export class Saric {
     this.x = x;
     this.y = y;
     this.dir = DIR_DOWN;
-    this.hp = 20;
-    this.hpMax = 20;
-    this.stamina = STAMINA_MAX;
-    this.gold = 50;
+    // Saric.c:40-99 initSaric()
+    this.hp = 10;
+    this.hpMax = 10;
+    this.stamina = 10;
+    this.staminaMax = 10;
+    this.gold = 0;
 
     // Progression
-    this.level = 1;
+    this.level = 0;
     this.xp = 0;
-    this.nextXp = 30;
+    this.nextXp = 20; // kBaseNextLevel = 20
 
-    // Stats
-    this.baseAttack = 4;
+    // Stats (Saric.c:56-57: armorValue = 0, damage = 1)
+    this.baseAttack = 1;
     this.baseDefense = 0;
 
     // Saric starts empty-handed. The dagger is received from the wounded man
@@ -122,17 +122,21 @@ export class Saric {
     return box(this.x + dx * SWORD_REACH, this.y + dy * SWORD_REACH, SWORD_BOX, SWORD_BOX);
   }
 
+  // Saric.c:101-118 levelUpSaric()
   addXp(amount) {
     this.xp += amount;
     let leveledUp = false;
     while (this.xp >= this.nextXp) {
       this.level++;
-      this.nextXp = Math.round(this.nextXp * 2.2);
+      this.hp += 5;
       this.hpMax += 5;
-      this.hp = this.hpMax;
-      this.stamina = STAMINA_MAX;
-      this.baseAttack += 2;
-      this.baseDefense += 1;
+      this.stamina += 5;
+      this.staminaMax += 5;
+      if (this.nextXp < 20 * 32) { // 640
+        this.nextXp *= 2;
+      } else {
+        this.nextXp += 20 * 32;
+      }
       leveledUp = true;
     }
     return leveledUp;
@@ -157,7 +161,7 @@ export class Saric {
     if (!item.heal && item.stamina >= 0) return false;
     if (item.heal) this.hp = Math.min(this.hpMax, this.hp + item.heal);
     if (item.stamina < 0) {
-      this.stamina = Math.min(STAMINA_MAX, this.stamina - item.stamina * STAMINA_PER_POINT);
+      this.stamina = Math.min(this.staminaMax, this.stamina - item.stamina);
     }
     this.inventory.splice(idx, 1);
     return true;

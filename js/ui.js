@@ -73,13 +73,13 @@ export class UI {
         <div class="modal-body">
           <div class="stats-panel">
             <h3>SARIC</h3>
-            <div id="stat-level">${t('Level: {n}', { n: 1 })}</div>
-            <div id="stat-hp">${t('HP: {hp} / {max}', { hp: 20, max: 20 })}</div>
-            <div id="stat-st">${t('Stamina: {n}', { n: 100 })}</div>
-            <div id="stat-atk">${t('Attack: {n}', { n: 4 })}</div>
+            <div id="stat-level">${t('Level: {n}', { n: 0 })}</div>
+            <div id="stat-hp">${t('HP: {hp} / {max}', { hp: 10, max: 10 })}</div>
+            <div id="stat-st">${t('Stamina: {n}', { n: 10 })}</div>
+            <div id="stat-atk">${t('Attack: {n}', { n: 1 })}</div>
             <div id="stat-def">${t('Defense: {n}', { n: 0 })}</div>
-            <div id="stat-xp">${t('XP: {x} / {next}', { x: 0, next: 30 })}</div>
-            <div id="stat-gold">${t('Gold: {n}', { n: 50 })}</div>
+            <div id="stat-xp">${t('XP: {x} / {next}', { x: 0, next: 20 })}</div>
+            <div id="stat-gold">${t('Gold: {n}', { n: 0 })}</div>
           </div>
           <div class="items-panel">
             <div class="tabs">

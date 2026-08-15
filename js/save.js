@@ -30,6 +30,7 @@ export class SaveManager {
       hp: p.hp,
       hpMax: p.hpMax,
       stamina: p.stamina,
+      staminaMax: p.staminaMax || 10,
       xp: p.xp,
       nextXp: p.nextXp,
       gold: p.gold,
@@ -60,5 +61,6 @@ export class SaveManager {
 
   static deleteSlot(slotId) {
     localStorage.removeItem(SAVE_KEY_PREFIX + slotId);
+    return true;
   }
 }
