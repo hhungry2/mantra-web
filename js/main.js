@@ -301,24 +301,34 @@ class Game {
     const player = this.player;
     const [dx, dy] = DIR_VECTORS[player.dir];
     const reach = 16;
-    const hit = box(player.x + dx * reach, player.y + dy * reach, 24, 24);
+    const hit = box(player.x + dx * reach, player.y + dy * reach, 28, 28);
     const door = this.enemies.find((e) => !e.dead && e.ai === AI.DOOR && overlaps(hit, e.doorBlock || e.body));
     if (!door) {
       this.hudNote = t('NOTHING HERE');
       this.noteUntil = this.frame + 25;
-      return;
+      return false;
     }
     door.dead = true;
     this.audio.play('key');
     this.defeatedMasks[this.screenIndex] |= (1 << door.slotIndex);
     this.world.closedDoors = this.world.closedDoors.filter((b) => b !== door.doorBlock);
-    const keyIdx = player.inventory.findIndex((i) => i.code === 150);
-    if (keyIdx >= 0) player.inventory.splice(keyIdx, 1);
+
+    // Consume 1 key from inventory quantity
+    const keyItem = player.inventory.find((i) => i.code === 150);
+    if (keyItem) {
+      keyItem.quantity = (keyItem.quantity || 1) - 1;
+      if (keyItem.quantity <= 0) {
+        const idx = player.inventory.indexOf(keyItem);
+        if (idx >= 0) player.inventory.splice(idx, 1);
+      }
+    }
     if (player.offhand?.code === 150 && !player.inventory.some((i) => i.code === 150)) {
       player.offhand = null;
     }
+
     this.hudNote = t('UNLOCKED!');
     this.noteUntil = this.frame + 50;
+    return true;
   }
 
   // powerMantraItem: the Force Mantra wounds every killable enemy on the
@@ -562,6 +572,24 @@ class Game {
         } else if (this.lastMessageEntity === enemy) {
           this.lastMessageEntity = null;
         }
+      }
+
+      // Locked door interaction: auto-unlock if player has key and touches/faces door
+      if (enemy.ai === AI.DOOR) {
+        const [dx, dy] = DIR_VECTORS[player.dir];
+        const reach = 16;
+        const hit = box(player.x + dx * reach, player.y + dy * reach, 28, 28);
+        const isNearDoor = overlaps(hit, enemy.doorBlock || enemy.body) || overlaps(player.body, enemy.doorBlock || enemy.body);
+        if (isNearDoor) {
+          const hasKey = player.inventory.some((i) => i.code === 150);
+          if (hasKey) {
+            this.keyUse();
+          } else if (this.hudNote !== t('LOCKED DOOR') && this.frame >= this.noteUntil) {
+            this.hudNote = t('LOCKED DOOR');
+            this.noteUntil = this.frame + 30;
+          }
+        }
+        continue;
       }
 
       // Locked doors cannot be cut or shot open; only a key opens them.

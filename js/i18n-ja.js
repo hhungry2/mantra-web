@@ -82,6 +82,7 @@ export default {
     'BOSS': 'ボス',
     'LEVEL UP!': 'レベルアップ!',
     'UNLOCKED!': '鍵が開いた!',
+    'LOCKED DOOR': '扉が閉ざされている (鍵が必要)',
     'The five Mantras are yours. Bring them to Castle Blednock!': '五つのマントラが揃った。キャッスル・ブレドノックへ届けよ!',
     'SCREEN {n} ({x},{y})': '画面 {n} ({x},{y})',
 
