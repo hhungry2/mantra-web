@@ -206,17 +206,25 @@ export class Saric {
   }
 
   // Money is never carried: picking a coin up banks its face value.
-  addItem(item) {
+  //
+  // How many you get depends on where it came from, and the original is
+  // deliberate about the difference: something found in the world hands over
+  // the template's whole `quantity` (EnemyCollision.c:484, EnemyUpdate.c:196),
+  // while a shop sells them one at a time - both purchase paths in the
+  // original do a bare `itemQuantities[...]++` (Dialogs.c:2000, 2132).
+  // Healing potions carry quantity 10, so passing the default at a shop hands
+  // over ten for the price of one.
+  addItem(item, count = item.quantity || 1) {
     if (item.attributes & FLAG.MONEY) {
-      this.gold += item.quantity;
+      this.gold += count;
     } else {
       const existing = this.inventory.find((i) => i.code === item.code);
       if (existing && !(existing.attributes & (FLAG.WEAPON | FLAG.ARMOR))) {
-        existing.quantity = (existing.quantity || 1) + (item.quantity || 1);
+        existing.quantity = (existing.quantity || 1) + count;
       } else {
         this.inventory.push({
           ...item,
-          quantity: item.quantity || 1,
+          quantity: count,
           currentCharges: item.charges || 1,
         });
       }

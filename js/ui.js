@@ -393,7 +393,9 @@ export class UI {
       buyBtn.addEventListener('click', () => {
         if (this.game.player.gold >= entry.price) {
           this.game.player.gold -= entry.price;
-          this.game.player.addItem(item);
+          // Dialogs.c:2000, 2132: a purchase is `itemQuantities[...]++`, one
+          // per press, whatever the template's own quantity says.
+          this.game.player.addItem(item, 1);
           this.game.audio.play('money');
           this.renderShopItems();
           this.updateStatsDisplay();
