@@ -13,7 +13,6 @@ const WALK_SPEED = 2;
 const RUN_SPEED = 6;
 
 const SWING_FRAMES = 8;
-const SWING_COOLDOWN = 4;
 const INVULN_FRAMES = 25;
 
 const BODY_W = 16;
@@ -56,8 +55,20 @@ export class Saric {
     this.sitCounter = 0;
     this.runCounter = 0;
     this.swing = 0;
-    this.cooldown = 0;
-    this.rangedCooldown = 0;
+
+    this.weaponFireCounter = 999;
+    this.offhandFireCounter = 999;
+    this.hadHitEnemy = false;
+    this.swordOut = false;
+    this.wasSwordOut = false;
+    this.offhandOut = false;
+    this.wasOffhandOut = false;
+
+    this.swungThisFrame = false;
+    this.firedThisFrame = null;
+    this.offhandFiredThisFrame = null;
+    this.specialRoutineThisFrame = null;
+
     this.woundCounter = 0;
     this.incrementalDamageCounter = 0;
     this.messageCounter = 0;
@@ -96,21 +107,6 @@ export class Saric {
 
   armorBonus(field) {
     return this.armor ? (this.armor[field] || 0) : 0;
-  }
-
-  canFireRanged() {
-    const item = this.offhand;
-    return isRangedItem(item)
-      && this.rangedCooldown === 0
-      && (this.debugMode || this.stamina >= (item.stamina || 0));
-  }
-
-  fireRanged() {
-    if (!this.canFireRanged()) return null;
-    const item = this.offhand;
-    if (!this.debugMode) this.stamina = Math.max(0, this.stamina - (item.stamina || 0));
-    this.rangedCooldown = Math.max(1, item.rate || 1);
-    return item;
   }
 
   isEquipped(item) {
@@ -159,6 +155,23 @@ export class Saric {
     return true;
   }
 
+  // Input.c:782-799, 973-990: charges consumption
+  consumeItemCharge(item) {
+    if (item.currentCharges === undefined) item.currentCharges = item.charges || 1;
+    item.currentCharges--;
+    if (item.currentCharges <= 0) {
+      item.quantity = (item.quantity || 1) - 1;
+      item.currentCharges = item.charges || 1;
+      if (item.quantity <= 0) {
+        const idx = this.inventory.indexOf(item);
+        if (idx >= 0) this.inventory.splice(idx, 1);
+        if (this.weapon === item) this.weapon = null;
+        if (this.offhand === item) this.offhand = null;
+        if (this.armor === item) this.armor = null;
+      }
+    }
+  }
+
   // A potion's stamina figure is signed: negative restores fatigue, which is
   // what the Fatigue Restoration and All Salve potions do.
   useItem(item) {
@@ -175,8 +188,20 @@ export class Saric {
 
   // Money is never carried: picking a coin up banks its face value.
   addItem(item) {
-    if (item.attributes & FLAG.MONEY) this.gold += item.quantity;
-    else this.inventory.push(item);
+    if (item.attributes & FLAG.MONEY) {
+      this.gold += item.quantity;
+    } else {
+      const existing = this.inventory.find((i) => i.code === item.code);
+      if (existing && !(existing.attributes & (FLAG.WEAPON | FLAG.ARMOR))) {
+        existing.quantity = (existing.quantity || 1) + (item.quantity || 1);
+      } else {
+        this.inventory.push({
+          ...item,
+          quantity: item.quantity || 1,
+          currentCharges: item.charges || 1,
+        });
+      }
+    }
   }
 
   recover(amount) {
@@ -234,6 +259,11 @@ export class Saric {
   }
 
   update(input, world, screen) {
+    this.swungThisFrame = false;
+    this.firedThisFrame = null;
+    this.offhandFiredThisFrame = null;
+    this.specialRoutineThisFrame = null;
+
     // Input.c:693-701: woundCounter
     if (this.woundCounter > 0) {
       this.woundCounter++;
@@ -243,21 +273,84 @@ export class Saric {
       this.messageCounter++;
       if (this.messageCounter > 10) this.messageCounter = 0; // Input.c:704-712
     }
-    if (this.cooldown > 0) this.cooldown--;
-    if (this.rangedCooldown > 0) this.rangedCooldown--;
     if (this.swing > 0) this.swing--;
     if (this.dead) return;
 
-    // Holding space keeps the sword drawn for as long as the key is down,
-    // instead of a single edge-triggered burst; the cooldown only gates the
-    // "swing" sound/hit so it doesn't refire every frame of the hold.
+    this.weaponFireCounter++;
+    this.offhandFireCounter++;
+
+    // Input.c:749-935: Main Weapon (Sword)
+    this.swordOut = false;
     if (input.attack) {
-      this.swungThisFrame = this.swing === 0 && this.cooldown === 0;
-      if (this.swungThisFrame) this.cooldown = SWING_COOLDOWN;
-      this.swing = SWING_FRAMES;
+      const weapon = this.weapon;
+      if (!this.hadHitEnemy && weapon) {
+        if (this.weaponFireCounter >= (weapon.rate || 0)) {
+          const canSwing = this.debugMode || (weapon.stamina || 0) <= 0 || this.stamina >= weapon.stamina;
+          if (canSwing) {
+            this.swordOut = true;
+            this.swing = SWING_FRAMES;
+            if (!this.wasSwordOut) {
+              if (!this.debugMode && (weapon.stamina || 0) > 0) {
+                this.stamina = Math.max(0, this.stamina - weapon.stamina);
+              }
+              if (weapon.attributes & FLAG.HAS_CHARGES) {
+                this.consumeItemCharge(weapon);
+              }
+              if (weapon.heal > 0) {
+                this.hp = Math.min(this.hpMax, this.hp + weapon.heal);
+              }
+              if (weapon.fires) {
+                this.firedThisFrame = weapon;
+              }
+              this.swungThisFrame = true;
+            }
+          }
+        }
+      }
     } else {
-      this.swungThisFrame = false;
+      this.hadHitEnemy = false;
     }
+
+    if (this.wasSwordOut && !this.swordOut) {
+      this.weaponFireCounter = 0;
+    }
+    this.wasSwordOut = this.swordOut;
+
+    // Input.c:941-1030: Offhand Weapon / Item
+    this.offhandOut = false;
+    if (input.ranged) {
+      const offhand = this.offhand;
+      if (offhand) {
+        if (this.offhandFireCounter >= (offhand.rate || 0)) {
+          const canUse = this.debugMode || (offhand.stamina || 0) <= 0 || this.stamina >= offhand.stamina;
+          if (canUse) {
+            this.offhandOut = true;
+            if (!this.wasOffhandOut) {
+              if (!this.debugMode && (offhand.stamina || 0) > 0) {
+                this.stamina = Math.max(0, this.stamina - offhand.stamina);
+              }
+              if (offhand.attributes & FLAG.HAS_CHARGES) {
+                this.consumeItemCharge(offhand);
+              }
+              if (offhand.heal > 0) {
+                this.hp = Math.min(this.hpMax, this.hp + offhand.heal);
+              }
+              if (offhand.fires) {
+                this.offhandFiredThisFrame = offhand;
+              }
+              if (offhand.attributes & FLAG.SPECIAL_ROUTINE) {
+                this.specialRoutineThisFrame = offhand;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (this.wasOffhandOut && !this.offhandOut) {
+      this.offhandFireCounter = 0;
+    }
+    this.wasOffhandOut = this.offhandOut;
 
     let dx = 0;
     let dy = 0;

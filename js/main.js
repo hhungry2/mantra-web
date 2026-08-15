@@ -250,11 +250,6 @@ class Game {
   // screen. This mirrors runItemSpecialRoutine in the original's Saric.c.
   useSpecialRoutine(item) {
     if (!item || !(item.attributes & FLAG.SPECIAL_ROUTINE)) return;
-    if (this.player.rangedCooldown > 0) return;
-    this.player.rangedCooldown = Math.max(1, item.rate || 1);
-    if (!this.player.debugMode) {
-      this.player.stamina = Math.max(0, this.player.stamina - (item.stamina || 0));
-    }
     if (item.code === 150) this.keyUse();
     else if (item.code === 104) this.powerMantra();
   }
@@ -356,23 +351,33 @@ class Game {
     player.update(this.input, this.world, this.screen);
     if (player.swungThisFrame) this.audio.play('sword');
 
-    if (this.input.ranged) {
-      const item = player.fireRanged();
-      if (item && item.fires) {
-        const template = this.templates.get(item.fires);
-        if (template) {
-          const [dx, dy] = DIR_VECTORS[player.dir];
-          const missileFacing = player.dir === 1 ? 1 : (player.dir === 2 ? 2 : (player.dir === 0 ? 3 : 4));
-          const missile = createEnemyFromTemplate(template, player.x + dx * 32, player.y + dy * 32, missileFacing, ~ATTR.IS_ENEMY);
-          missile.damage = item.damage || template.damage;
-          this.enemies.push(missile);
-          this.audio.play('sword');
-        }
-      } else {
-        // Off-hand items without a missile (the Key, the Mantras) carry a
-        // special routine instead - the original's runItemSpecialRoutine.
-        this.useSpecialRoutine(player.offhand);
+    if (player.firedThisFrame) {
+      const item = player.firedThisFrame;
+      const template = this.templates.get(item.fires);
+      if (template) {
+        const [dx, dy] = DIR_VECTORS[player.dir];
+        const missileFacing = player.dir === 1 ? 1 : (player.dir === 2 ? 2 : (player.dir === 0 ? 3 : 4));
+        const missile = createEnemyFromTemplate(template, player.x + dx * 32, player.y + dy * 32, missileFacing, ~ATTR.IS_ENEMY);
+        missile.damage = item.damage || template.damage;
+        this.enemies.push(missile);
       }
+    }
+
+    if (player.offhandFiredThisFrame) {
+      const item = player.offhandFiredThisFrame;
+      const template = this.templates.get(item.fires);
+      if (template) {
+        const [dx, dy] = DIR_VECTORS[player.dir];
+        const missileFacing = player.dir === 1 ? 1 : (player.dir === 2 ? 2 : (player.dir === 0 ? 3 : 4));
+        const missile = createEnemyFromTemplate(template, player.x + dx * 32, player.y + dy * 32, missileFacing, ~ATTR.IS_ENEMY);
+        missile.damage = item.damage || template.damage;
+        this.enemies.push(missile);
+        this.audio.play('sword');
+      }
+    }
+
+    if (player.specialRoutineThisFrame) {
+      this.useSpecialRoutine(player.specialRoutineThisFrame);
     }
 
     this.checkScreenTransitions();
@@ -454,8 +459,10 @@ class Game {
       }
 
       // Locked doors cannot be cut or shot open; only a key opens them.
+      // Input.c:756, 901: 1 hit per swing with hadHitEnemy
       if (sword && enemy.killable && enemy.ai !== AI.DOOR && enemy.flash === 0 && overlaps(sword, enemy.body)) {
         const killed = enemy.hurt(player.attack, player.damageType, player.x, player.y);
+        player.hadHitEnemy = true;
         this.audio.play(killed ? 'kill' : 'hit');
         if (killed) this.defeat(enemy);
       }
