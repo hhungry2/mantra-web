@@ -1,6 +1,6 @@
 // Sound effects and background music.
 
-import { ModPlayer } from './mod/player.js';
+import { ModPlayer } from './vendor/js-mod-player/player.js';
 
 // Nothing in the data files records which effect is which sound, so these
 // names are read off the call sites in the original C source:

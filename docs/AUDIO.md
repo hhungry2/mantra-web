@@ -5,22 +5,23 @@
 ## ファイル構成
 
 ```
-js/audio.js              ゲーム本体のSE/音楽マネージャ。js/mod/ を使う。
+js/audio.js              ゲーム本体のSE/音楽マネージャ。js/vendor/js-mod-player/ を使う。
 js/mod/
   parser.js               MODファイルパーサ（.mod → {channels, samples, order, patterns, ...}）
   worklet.js               AudioWorkletProcessor本体。tick/row/エフェクト処理とサンプル合成。
-  player.js                メインスレッド側ラッパー（ModPlayer）。ゲームとアーカイブページの両方が使う。
+  player.js                メインスレッド側ラッパー（ModPlayer）。
 music/index.html          9曲を試聴できるアーカイブページ。ENGINEボタンで3エンジンを聴き比べ可能。
 old/
   mod.js                  退役: AudioBufferSourceNode版エンジン（ゲーム用コピー、メーターなし）
   music-mod-player.js     退役: 同エンジンのアーカイブページ版（メーター付き、今も"Node"として現役）
   node-adapter.js         music-mod-player.js を js/mod/player.js と同じAPI形に揃えるアダプタ
-js/vendor/js-mod-player/  サードパーティ実装（atornblad/js-mod-player）。6ch対応パッチ済み。
+js/vendor/js-mod-player/  サードパーティ実装（atornblad/js-mod-player）。6ch対応パッチ済み。ゲーム本体で現在採用。
 ```
 
-## 採用しているエンジン: `js/mod/`
+## 採用しているエンジン: `js/vendor/js-mod-player/`
 
-ゲーム本体(`js/audio.js`)とアーカイブページのデフォルトは`js/mod/`。中身は以下の2段構成:
+ゲーム本体(`js/audio.js`)では `js/vendor/js-mod-player/` を使用しています。
+試聴アーカイブページ(`music/index.html`)では引き続き `Worklet` / `Node` / `js-mod-player` の3種類を切り替えて聴き比べが可能です。
 
 1. **`js/mod/parser.js`** — MODバイナリを読んでJSオブジェクトに変換するだけ。チャンネル数はフォーマットタグ(`M.K.`/`4CHN`/`6CHN`等)から判定するので4/6/8chいずれも扱える。
 2. **`js/mod/worklet.js`** — `AudioWorkletProcessor`として音声レンダリングスレッドで動く。tick/row/エフェクト処理(period計算、アルペジオ、ポルタメント、ビブラート、ボリュームスライド等)は`old/music-mod-player.js`から**ロジックを変えずに**移植したもの。変えたのは「ノートをどう音にするか」だけ:
