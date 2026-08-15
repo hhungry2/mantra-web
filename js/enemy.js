@@ -109,12 +109,18 @@ export class Enemy {
     return this.sprite - 2000 + this.frameOffset;
   }
 
+  // Input.c:868-916, EnemyCollision.c:734-769: a swing that doesn't clear
+  // armor, or that the target is immune to, does nothing at all - no
+  // legCounter reset, no knockback, no sound. Returns null for that case so
+  // callers can tell "missed" apart from "hit but didn't kill" (false) and
+  // "killed" (true); armor/knockback/hadHitEnemy all key off this, not off
+  // whether the target died.
   hurt(amount, damageType = 0) {
-    if (!this.killable) return false;
+    if (!this.killable) return null;
     const netDamage = amount - Math.max(0, this.armor);
     // Input.c:869: CHECK_IMMUNITIES(next->immunities, g_Saric.damageType)
     const checkImmunity = (damageType & (~this.immunities)) !== 0;
-    if (netDamage <= 0 || !checkImmunity) return false;
+    if (netDamage <= 0 || !checkImmunity) return null;
 
     this.hp -= netDamage;
     this.flash = HIT_FLASH;

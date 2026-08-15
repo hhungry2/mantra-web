@@ -529,20 +529,25 @@ class Game {
           // EnemyCollision.c:723: insubstantial missiles don't affect insubstantial enemies
           if ((enemy.attributes & ATTR.INSUBSTANTIAL) && (target.attributes & ATTR.INSUBSTANTIAL)) continue;
           if (overlaps(enemy.body, target.body)) {
-            const killed = target.hurt(enemy.damage, enemy.damageType);
-            // Input.c:881-899 & EnemyCollision.c:749-769: 16px knockback along attacker facing
-            let kx = 0;
-            let ky = 0;
-            switch (enemy.facing) {
-              case 1: kx = 16; break;
-              case 2: ky = 16; break;
-              case 3: kx = -16; break;
-              case 4: ky = -16; break;
-            }
-            if (kx !== 0 || ky !== 0) this.move(target, kx, ky);
+            const result = target.hurt(enemy.damage, enemy.damageType);
+            // EnemyCollision.c:738-769: armor or immunity blocking the hit
+            // entirely (result === null) leaves the target untouched - no
+            // knockback, no sound.
+            if (result !== null) {
+              // Input.c:881-899 & EnemyCollision.c:749-769: 16px knockback along attacker facing
+              let kx = 0;
+              let ky = 0;
+              switch (enemy.facing) {
+                case 1: kx = 16; break;
+                case 2: ky = 16; break;
+                case 3: kx = -16; break;
+                case 4: ky = -16; break;
+              }
+              if (kx !== 0 || ky !== 0) this.move(target, kx, ky);
 
-            this.audio.play(killed ? 'kill' : 'hit');
-            if (killed) this.defeat(target);
+              this.audio.play(result ? 'kill' : 'hit');
+              if (result) this.defeat(target);
+            }
             // EnemyCollision.c:727-730: only a missile dies on impact.
             if (enemy.attributes & ATTR.IS_MISSILE) enemy.dead = true;
             break;
@@ -622,21 +627,29 @@ class Game {
       // Locked doors cannot be cut or shot open; only a key opens them.
       // Input.c:756, 901: 1 hit per swing with hadHitEnemy
       if (sword && enemy.killable && enemy.ai !== AI.DOOR && enemy.flash === 0 && overlaps(sword, enemy.body)) {
-        const killed = enemy.hurt(player.attack, player.damageType);
-        // Input.c:881-899: instantaneous 16px knockback in Saric's facing direction
-        let kx = 0;
-        let ky = 0;
-        switch (player.dir) {
-          case 0: kx = -16; break;
-          case 1: kx = 16; break;
-          case 2: ky = 16; break;
-          case 3: ky = -16; break;
-        }
-        if (kx !== 0 || ky !== 0) this.move(enemy, kx, ky);
+        const result = enemy.hurt(player.attack, player.damageType);
+        // Input.c:868-916: armor or immunity that blocks the hit entirely
+        // (result === null) leaves the swing with no effect whatsoever - no
+        // knockback, no hadHitEnemy, no sound, same as bouncing off a wall.
+        // A boulder with more armor than the swing can clear must stay
+        // exactly where it is, not get shoved down the corridor it's
+        // blocking by a swing that never actually hurt it.
+        if (result !== null) {
+          // Input.c:881-899: instantaneous 16px knockback in Saric's facing direction
+          let kx = 0;
+          let ky = 0;
+          switch (player.dir) {
+            case 0: kx = -16; break;
+            case 1: kx = 16; break;
+            case 2: ky = 16; break;
+            case 3: ky = -16; break;
+          }
+          if (kx !== 0 || ky !== 0) this.move(enemy, kx, ky);
 
-        player.hadHitEnemy = true;
-        this.audio.play(killed ? 'kill' : 'hit');
-        if (killed) this.defeat(enemy);
+          player.hadHitEnemy = true;
+          this.audio.play(result ? 'kill' : 'hit');
+          if (result) this.defeat(enemy);
+        }
       }
 
       if (!enemy.dead && enemy.damage > 0 && overlaps(player.body, enemy.body)) {
