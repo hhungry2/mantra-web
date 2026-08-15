@@ -182,7 +182,16 @@ export class Saric {
     if (item.stamina < 0) {
       this.stamina = Math.min(this.staminaMax, this.stamina - item.stamina);
     }
-    this.inventory.splice(idx, 1);
+
+    if (item.currentCharges === undefined) item.currentCharges = item.charges || 1;
+    item.currentCharges--;
+    if (item.currentCharges <= 0) {
+      item.quantity = (item.quantity || 1) - 1;
+      item.currentCharges = item.charges || 1;
+      if (item.quantity <= 0) {
+        this.inventory.splice(idx, 1);
+      }
+    }
     return true;
   }
 

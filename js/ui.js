@@ -324,6 +324,7 @@ export class UI {
         btn.textContent = t('Use');
         btn.addEventListener('click', () => {
           if (p.useItem(item)) {
+            this.game.audio.play('item');
             this.updateStatsDisplay();
             this.renderInventoryItems();
           }
