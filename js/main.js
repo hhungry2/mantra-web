@@ -701,6 +701,28 @@ class Game {
     } else if (this.victory) {
       r.drawEndCard(this.renderer.win, t('You brought the five Mantras to Castle Blednock'));
     }
+
+    this.updateDebugMantras();
+  }
+
+  updateDebugMantras() {
+    if (!this.player) return;
+    let mask = 0;
+    MANTRA_CODES.forEach((c, idx) => {
+      if (this.player.inventory.some((i) => i.code === c)) {
+        mask |= (1 << idx);
+      }
+    });
+    if (mask === this.lastMantraMask) return;
+    this.lastMantraMask = mask;
+    const slots = document.querySelectorAll('.debug-mantra-slot');
+    slots.forEach((slot, idx) => {
+      if (mask & (1 << idx)) {
+        slot.classList.add('active');
+      } else {
+        slot.classList.remove('active');
+      }
+    });
   }
 }
 
@@ -812,6 +834,37 @@ async function boot() {
   if (screenInput) {
     screenInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') handleWarp();
+    });
+  }
+
+  const mantraContainer = document.getElementById('debug-mantras');
+  if (mantraContainer) {
+    mantraContainer.addEventListener('click', async (e) => {
+      const slot = e.target.closest('.debug-mantra-slot');
+      if (!slot) return;
+      applyDebugMode();
+      overlay.classList.add('hidden');
+      story.classList.add('hidden');
+      if (!gameStarted) {
+        await startGame();
+      }
+      const code = parseInt(slot.dataset.code, 10);
+      const existingIdx = game.player.inventory.findIndex((i) => i.code === code);
+      if (existingIdx >= 0) {
+        const removed = game.player.inventory.splice(existingIdx, 1)[0];
+        game.hudNote = t('LOST {name}', { name: removed.name });
+        game.audio.play('hit');
+      } else {
+        const item = getItem(code);
+        if (item) {
+          game.player.addItem(item);
+          game.hudNote = t('FOUND {name}', { name: item.name });
+          game.audio.play('mantra');
+        }
+      }
+      game.noteUntil = game.frame + 50;
+      game.updateDebugMantras();
+      game.ui.updateStatsDisplay();
     });
   }
 

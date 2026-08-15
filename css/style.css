@@ -183,6 +183,53 @@ canvas#game-canvas {
   transform: translateY(0);
 }
 
+.debug-mantras {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(11, 12, 16, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 2px 6px;
+  height: 36px;
+}
+
+.debug-mantra-slot {
+  width: 32px;
+  height: 32px;
+  background-image: url(../assets/icons32.png);
+  background-size: 512px auto;
+  border-radius: 4px;
+  opacity: 0.25;
+  filter: grayscale(100%) brightness(0.5);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.debug-mantra-slot[data-code="100"] { background-position: -352px -32px; }
+.debug-mantra-slot[data-code="101"] { background-position: -384px -32px; }
+.debug-mantra-slot[data-code="102"] { background-position: -416px -32px; }
+.debug-mantra-slot[data-code="103"] { background-position: -448px -32px; }
+.debug-mantra-slot[data-code="104"] { background-position: -480px -32px; }
+
+.debug-mantra-slot:hover {
+  opacity: 0.65;
+  transform: scale(1.1);
+}
+
+.debug-mantra-slot.active {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(102, 252, 241, 0.9));
+  border-color: rgba(102, 252, 241, 0.6);
+  background-color: rgba(102, 252, 241, 0.1);
+}
+
+.debug-mantra-slot.active:hover {
+  filter: drop-shadow(0 0 10px rgba(102, 252, 241, 1));
+  transform: scale(1.15);
+}
+
 .language-toggle {
   display: flex;
   align-items: center;

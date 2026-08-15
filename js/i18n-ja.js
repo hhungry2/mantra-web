@@ -84,6 +84,7 @@ export default {
     'GAME LOADED!': 'ゲームをロードしました!',
     'NOTHING HERE': '何もない',
     'FOUND {name}': '{name} を手に入れた!',
+    'LOST {name}': '{name} を失った',
     '{name} DEFEATED': '{name} を撃破!',
     'BOSS': 'ボス',
     'LEVEL UP!': 'レベルアップ!',
