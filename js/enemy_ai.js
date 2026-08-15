@@ -573,6 +573,11 @@ const ROUTINES = {
       }
       enemy.hp = 0;
       enemy.dead = true;
+      // Enemies.c:154-179: health<=0 is normally caught by the next frame's
+      // dead-enemy sweep, which spawns the corpse/drop via killCurrentEnemy.
+      // This handler kills the boss inline instead, so it must trigger that
+      // same defeat path itself or the key never drops.
+      if (ctx.onSelfDefeat) ctx.onSelfDefeat(enemy);
       return;
     }
 

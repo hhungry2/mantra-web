@@ -482,6 +482,7 @@ class Game {
       enemies: this.enemies,
       move: this.move,
       onWinGame: () => this.winGame(),
+      onSelfDefeat: (e) => this.defeat(e),
     };
     const sword = player.swordBox;
 
