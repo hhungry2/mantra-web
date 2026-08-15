@@ -292,11 +292,12 @@ export class UI {
       const row = document.createElement('div');
       row.className = 'item-row';
       const isEquipped = p.isEquipped(item);
+      const qtyStr = (item.quantity && item.quantity > 1) ? ` <span class="item-qty">x${item.quantity}</span>` : '';
 
       row.innerHTML = `
         <div class="item-icon" style="${iconStyle(item, this.gfx)}"></div>
         <div class="item-text">
-          <div class="item-name">${item.name} ${isEquipped ? `<span class="equipped-tag">${t('[Equipped]')}</span>` : ''}</div>
+          <div class="item-name">${item.name}${qtyStr} ${isEquipped ? `<span class="equipped-tag">${t('[Equipped]')}</span>` : ''}</div>
           <div class="item-desc">${item.desc || ''}</div>
           ${itemStats(item)}
         </div>

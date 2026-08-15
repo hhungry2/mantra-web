@@ -328,6 +328,11 @@ class Game {
 
     this.hudNote = t('UNLOCKED!');
     this.noteUntil = this.frame + 50;
+
+    if (this.ui && this.ui.inventoryOpen) {
+      this.ui.renderInventoryItems();
+      this.ui.updateStatsDisplay();
+    }
     return true;
   }
 
@@ -575,7 +580,7 @@ class Game {
       }
 
       // Locked door interaction: auto-unlock if player has key and touches/faces door
-      if (enemy.ai === AI.DOOR) {
+      if (enemy.ai === AI.DOOR && !enemy.dead) {
         const [dx, dy] = DIR_VECTORS[player.dir];
         const reach = 16;
         const hit = box(player.x + dx * reach, player.y + dy * reach, 28, 28);
@@ -584,6 +589,10 @@ class Game {
           const hasKey = player.inventory.some((i) => i.code === 150);
           if (hasKey) {
             this.keyUse();
+            if (this.ui.inventoryOpen) {
+              this.ui.renderInventoryItems();
+              this.ui.updateStatsDisplay();
+            }
           } else if (this.hudNote !== t('LOCKED DOOR') && this.frame >= this.noteUntil) {
             this.hudNote = t('LOCKED DOOR');
             this.noteUntil = this.frame + 30;
