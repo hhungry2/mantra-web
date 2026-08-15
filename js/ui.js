@@ -109,7 +109,10 @@ export class UI {
         </div>
         <div class="modal-body">
           <div class="shop-list-container">
-            <p id="shop-greeting" class="shop-greeting"></p>
+            <div class="shop-header-row">
+              <p id="shop-greeting" class="shop-greeting"></p>
+              <div id="shop-gold" class="shop-gold"></div>
+            </div>
             <h3>${t('For Sale')}</h3>
             <div id="shop-items-list" class="item-list"></div>
             <h3>${t('Your Items')}</h3>
@@ -344,6 +347,11 @@ export class UI {
     const listEl = document.getElementById('shop-items-list');
     listEl.innerHTML = '';
 
+    const goldEl = document.getElementById('shop-gold');
+    if (goldEl) {
+      goldEl.textContent = t('Your Gold: {gold}', { gold: this.game.player.gold });
+    }
+
     const store = this.game.currentStore;
     if (!store) {
       listEl.innerHTML = `<div class="empty-msg">${t('Nothing for sale here.')}</div>`;
@@ -356,6 +364,7 @@ export class UI {
     store.stock.forEach((entry) => {
       const item = getItem(entry.code);
       if (!item) return;
+      const canAfford = this.game.player.gold >= entry.price;
       const row = document.createElement('div');
       row.className = 'item-row';
       row.innerHTML = `
@@ -366,14 +375,23 @@ export class UI {
           ${itemStats(item)}
         </div>
         <div class="item-actions">
-          <button class="action-btn buy-btn">${t('Buy')}</button>
+          <button class="action-btn buy-btn ${canAfford ? '' : 'disabled'}">${t('Buy')}</button>
         </div>
       `;
-      row.querySelector('.buy-btn').addEventListener('click', () => {
+
+      const buyBtn = row.querySelector('.buy-btn');
+      buyBtn.addEventListener('click', () => {
         if (this.game.player.gold >= entry.price) {
           this.game.player.gold -= entry.price;
           this.game.player.addItem(item);
+          this.game.audio.play('money');
           this.renderShopItems();
+          this.updateStatsDisplay();
+        } else {
+          buyBtn.classList.add('shake');
+          setTimeout(() => buyBtn.classList.remove('shake'), 400);
+          this.game.hudNote = t('Not enough gold!');
+          this.game.noteUntil = this.game.frame + 40;
         }
       });
       listEl.appendChild(row);
@@ -395,14 +413,44 @@ export class UI {
     p.inventory.forEach((item) => {
       const row = document.createElement('div');
       row.className = 'item-row';
+      const isEquipped = p.isEquipped(item);
+      const qtyStr = (item.quantity && item.quantity > 1) ? ` <span class="item-qty">x${item.quantity}</span>` : '';
+
+      // Calculate sell value (half price or base value, items with FLAG.MESSAGE or FLAG.SPECIAL are not sellable)
+      const isMantra = item.code >= 100 && item.code <= 104;
+      const isSpecial = item.type === ITEM_TYPES.MESSAGE || isMantra || item.code === 150;
+      const sellPrice = isSpecial ? 0 : Math.max(1, Math.floor((item.damage * 5 || item.armor * 5 || 5)));
+
       row.innerHTML = `
         <div class="item-icon" style="${iconStyle(item, this.gfx)}"></div>
         <div class="item-text">
-          <div class="item-name">${item.name}</div>
+          <div class="item-name">${item.name}${qtyStr} ${isEquipped ? `<span class="equipped-tag">${t('[Equipped]')}</span>` : ''}</div>
           <div class="item-desc">${item.desc || ''}</div>
           ${itemStats(item)}
         </div>
+        <div class="item-actions">
+          ${!isSpecial ? `<button class="action-btn sell-btn">${t('Sell ({price} G)', { price: sellPrice })}</button>` : ''}
+        </div>
       `;
+
+      const sellBtn = row.querySelector('.sell-btn');
+      if (sellBtn) {
+        sellBtn.addEventListener('click', () => {
+          p.gold += sellPrice;
+          item.quantity = (item.quantity || 1) - 1;
+          if (item.quantity <= 0) {
+            const idx = p.inventory.indexOf(item);
+            if (idx >= 0) p.inventory.splice(idx, 1);
+            if (p.weapon === item) p.weapon = null;
+            if (p.armor === item) p.armor = null;
+            if (p.offhand === item) p.offhand = null;
+          }
+          this.game.audio.play('money');
+          this.renderShopItems();
+          this.updateStatsDisplay();
+        });
+      }
+
       listEl.appendChild(row);
     });
   }
