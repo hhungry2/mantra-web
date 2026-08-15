@@ -119,11 +119,11 @@ class Game {
     });
     this.corpses = [];
     // Locked doors keep their bodies on the movement collision layer until
-    // a key opens them. Bodies are captured once and reused by reference.
+    // a key opens them. Bodies cover the full 32x32 tile to prevent slipping past.
     this.world.closedDoors = [];
     for (const e of this.enemies) {
       if (e.ai !== AI.DOOR) continue;
-      const body = e.body;
+      const body = box(e.x, e.y, TILE, TILE);
       e.doorBlock = body;
       this.world.closedDoors.push(body);
     }
@@ -293,8 +293,8 @@ class Game {
     const player = this.player;
     const [dx, dy] = DIR_VECTORS[player.dir];
     const reach = 16;
-    const hit = box(player.x + dx * reach, player.y + dy * reach, 20, 16);
-    const door = this.enemies.find((e) => !e.dead && e.ai === AI.DOOR && overlaps(hit, e.body));
+    const hit = box(player.x + dx * reach, player.y + dy * reach, 24, 24);
+    const door = this.enemies.find((e) => !e.dead && e.ai === AI.DOOR && overlaps(hit, e.doorBlock || e.body));
     if (!door) {
       this.hudNote = t('NOTHING HERE');
       this.noteUntil = this.frame + 25;
