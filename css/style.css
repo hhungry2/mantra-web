@@ -162,7 +162,7 @@ canvas#game-canvas {
   box-shadow: 0 0 6px rgba(102, 252, 241, 0.4);
 }
 
-.debug-warp-button {
+.debug-btn {
   background: var(--accent-color);
   color: #0b0c10;
   border: none;
@@ -174,12 +174,12 @@ canvas#game-canvas {
   transition: background 0.15s ease, transform 0.1s ease;
 }
 
-.debug-warp-button:hover {
+.debug-btn:hover {
   background: var(--accent-hover);
   transform: translateY(-1px);
 }
 
-.debug-warp-button:active {
+.debug-btn:active {
   transform: translateY(0);
 }
 

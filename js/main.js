@@ -765,6 +765,24 @@ async function boot() {
 
   debugToggle.addEventListener('change', applyDebugMode);
 
+  const lvlupButton = document.getElementById('debug-lvlup-btn');
+  if (lvlupButton) {
+    lvlupButton.addEventListener('click', async () => {
+      applyDebugMode();
+      overlay.classList.add('hidden');
+      story.classList.add('hidden');
+      if (!gameStarted) {
+        await startGame();
+      }
+      const needed = Math.max(1, game.player.nextXp - game.player.xp);
+      game.player.addXp(needed);
+      game.audio.play('level');
+      game.hudNote = t('LEVEL UP!');
+      game.noteUntil = game.frame + 40;
+      game.ui.updateStatsDisplay();
+    });
+  }
+
   const screenInput = document.getElementById('debug-screen-input');
   const warpButton = document.getElementById('debug-warp-btn');
 
