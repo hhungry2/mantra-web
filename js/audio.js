@@ -1,8 +1,5 @@
 // Sound effects and background music.
 
-// Replay mixes sample-by-sample inside an AudioWorklet - see js/mod/. The
-// AudioBufferSourceNode-per-note engine this used to carry is kept at
-// old/mod.js.
 import { ModPlayer } from './mod/player.js';
 
 // Nothing in the data files records which effect is which sound, so these
@@ -19,7 +16,6 @@ const SFX_FILES = {
   item: 'assets/sfx/sfx_133.wav',    // 0.12s
   money: 'assets/sfx/sfx_137.wav',   // 0.37s
   key: 'assets/sfx/sfx_134.wav',     // 0.86s (keySpecialItem)
-  die: 'assets/sfx/sfx_134.wav',     // 0.86s
   fanfare: 'assets/sfx/sfx_138.wav', // 0.85s
 };
 
@@ -60,71 +56,81 @@ export class Audio {
     this.sfxBus = this.ctx.createGain();
     this.sfxBus.gain.value = 0.8;
     this.sfxBus.connect(this.master);
+
     this.musicBus = this.ctx.createGain();
-    this.musicBus.gain.value = 0.5;
+    this.musicBus.gain.value = 0.45;
     this.musicBus.connect(this.master);
 
-    this.player = new ModPlayer(this.ctx, this.musicBus);
-    return this.loadEffects();
-  }
-
-  async loadEffects() {
-    await Promise.all(Object.entries(SFX_FILES).map(async ([name, url]) => {
-      const res = await fetch(url);
-      if (!res.ok) return;
-      const bytes = await res.arrayBuffer();
-      this.buffers.set(name, await this.ctx.decodeAudioData(bytes));
-    }));
-  }
-
-  play(name) {
-    if (!this.enabled || this.muted || !this.ctx) return;
-    const buffer = this.buffers.get(name);
-    if (!buffer) return;
-    const src = this.ctx.createBufferSource();
-    src.buffer = buffer;
-    src.connect(this.sfxBus);
-    src.start();
-  }
-
-  async playMusic(index) {
-    if (!this.ctx || index === this.currentTrack || index === this.loadingTrack) return;
-    if (!Number.isInteger(index) || index < 0 || index >= MUSIC_FILES.length) return;
-
-    this.loadingTrack = index;
-    const request = ++this.musicRequest;
-    try {
-      const res = await fetch(MUSIC_FILES[index]);
-      if (!res.ok || request !== this.musicRequest) return;
-      const bytes = await res.arrayBuffer();
-      if (request !== this.musicRequest) return;
-      await this.player.loadBuffer(bytes);
-      if (request !== this.musicRequest) return;
-      this.currentTrack = index;
-      // The worklet's per-sample tanh packs the mix ~1.85dB denser than the
-      // AudioBufferSourceNode graph this used to run, measured across all
-      // nine tracks; trim it back to the level the game had before.
-      this.player.setVolume(0.82);
-      if (this.enabled && !this.muted) this.player.play();
-    } finally {
-      if (this.loadingTrack === index) this.loadingTrack = -1;
-    }
+    this.preloadSfx();
   }
 
   toggle() {
     this.enabled = !this.enabled;
-    if (!this.enabled) this.player?.stop();
-    else if (!this.muted && this.currentTrack >= 0) this.player.resume();
+    if (this.master) {
+      this.master.gain.value = this.enabled ? 0.7 : 0;
+    }
     return this.enabled;
   }
 
   mute() {
+    if (this.muted) return;
     this.muted = true;
-    this.player?.stop();
+    if (this.master) {
+      this.savedGain = this.master.gain.value;
+      this.master.gain.value = 0;
+    }
   }
 
   unmute() {
+    if (!this.muted) return;
     this.muted = false;
-    if (this.enabled && this.currentTrack >= 0) this.player?.resume();
+    if (this.master && this.enabled) {
+      this.master.gain.value = this.savedGain !== undefined ? this.savedGain : 0.7;
+    }
+  }
+
+  async preloadSfx() {
+    for (const [name, path] of Object.entries(SFX_FILES)) {
+      try {
+        const res = await fetch(path);
+        const buf = await res.arrayBuffer();
+        const audioBuf = await this.ctx.decodeAudioData(buf);
+        this.buffers.set(name, audioBuf);
+      } catch (err) {
+        console.warn(`Could not load SFX ${name}:`, err);
+      }
+    }
+  }
+
+  play(name) {
+    if (!this.ctx || !this.enabled || this.muted) return;
+    const buf = this.buffers.get(name);
+    if (!buf) return;
+    const source = this.ctx.createBufferSource();
+    source.buffer = buf;
+    source.connect(this.sfxBus);
+    source.start();
+  }
+
+  async playMusic(index) {
+    if (index < 0 || index >= MUSIC_FILES.length) return;
+    if (this.currentTrack === index) return;
+    const reqId = ++this.musicRequest;
+    this.loadingTrack = index;
+    const path = MUSIC_FILES[index];
+
+    try {
+      const res = await fetch(path);
+      const buf = await res.arrayBuffer();
+      if (reqId !== this.musicRequest) return;
+
+      if (!this.player) {
+        this.player = new ModPlayer(this.ctx, this.musicBus);
+      }
+      await this.player.load(buf);
+      this.currentTrack = index;
+    } catch (err) {
+      console.warn(`Could not load music track ${index}:`, err);
+    }
   }
 }

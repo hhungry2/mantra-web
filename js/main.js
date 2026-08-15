@@ -394,7 +394,7 @@ class Game {
       } else if (terrainEffect > 0 && !player.debugMode) {
         player.hp = Math.max(0, player.hp - terrainEffect);
         if (player.hp === 0) player.dead = true;
-        this.audio.play(player.dead ? 'die' : 'hurt');
+        this.audio.play('hurt');
       }
     }
 
@@ -471,7 +471,7 @@ class Game {
 
       if (!enemy.dead && enemy.damage > 0 && overlaps(player.body, enemy.body)) {
         if (player.hurt(enemy.damage, enemy.damageType, enemy.facing, enemy.ai === AI.DYING, this.world, this.screen)) {
-          this.audio.play(player.dead ? 'die' : 'hurt');
+          this.audio.play('hurt');
         }
         if (enemy.attributes & ATTR.IS_MISSILE) {
           enemy.dead = true;
@@ -506,6 +506,8 @@ class Game {
     }
     if (!this.victory && hasAllMantras && this.screenIndex === CASTLE_BLEDNOCK_SCREEN) {
       this.victory = true;
+      // Utils.c:556-557: play sound 131 and 138
+      this.audio.play('kill');
       this.audio.play('fanfare');
     }
   }
