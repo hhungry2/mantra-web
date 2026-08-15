@@ -4,7 +4,7 @@
 // original: a tile blocks unless it is marked standable. Doors carry their
 // destination packed into the tile's `special` field.
 
-import { TILE, SCREEN_COLS, VIEW_W, VIEW_H, WORLD_COLS, WORLD_ROWS } from './config.js';
+import { TILE, SCREEN_COLS, SCREEN_ROWS, VIEW_W, VIEW_H, WORLD_COLS, WORLD_ROWS } from './config.js';
 import { overlaps } from './collision.js';
 
 const SAMPLE_STEP = 4;

@@ -23,10 +23,6 @@ const READ_RANGE = 40;
 // Fire, Earth, Water, Air, Force.
 const MANTRA_CODES = [100, 101, 102, 103, 104];
 
-// Bronze and Copper Pennies are pocketed on the spot rather than left on the
-// ground as a visible drop.
-const POCKETED_COINS = new Set([200, 201]);
-
 // Grid (7,5). Five separate signposts (text.json #17,52,55,67,68) all name
 // this screen as Castle Blednock, and its two dungeon doors match the
 // "great labyrinth" / "Balther's maze" the labyrinth signs describe
@@ -223,7 +219,9 @@ class Game {
     if (!item) return;
     const isMoney = !!(item.attributes & FLAG.MONEY);
     this.player.addItem(item);
-    this.audio.play(isMoney ? 'money' : 'item');
+    // EnemyCollision.c:479-493: 133 always plays, money adds 137 on top.
+    this.audio.play('item');
+    if (isMoney) this.audio.play('money');
     this.hudNote = t('FOUND {name}', { name: item.name.toUpperCase() });
     this.noteUntil = this.frame + 50;
 
@@ -251,11 +249,16 @@ class Game {
     const isMissile = !!(enemy.attributes & ATTR.IS_MISSILE);
     const leveledUp = isMissile ? false : this.player.addXp(enemy.xp);
     // Door enemies and missiles vanish outright (Enemies.c:172) - no body left behind.
-    // Copper pennies are pocketed on the spot too, without a visible drop.
+    //
+    // Everything else leaves a body carrying whatever deadItem named, money
+    // included. The original hands nothing over on the spot: the corpse
+    // template (2056) is spawned with canBeHeld set, so the drop is only
+    // collected once Saric actually walks onto the body and
+    // checkEnemyInterceptWithSaric fires (EnemyCollision.c:477-509). Coins
+    // are not a special case there - isMoney only decides that the value is
+    // banked rather than carried, and that sound 137 plays on top of 133.
     if (enemy.ai !== AI.DOOR && !isMissile) {
-      const drop = getItem(enemy.drop);
-      if (drop && POCKETED_COINS.has(drop.code)) this.giveDrop(drop);
-      else this.corpses.push(new Corpse(enemy, drop));
+      this.corpses.push(new Corpse(enemy, getItem(enemy.drop)));
     }
 
     if (enemy.boss) {
@@ -272,7 +275,10 @@ class Game {
   giveDrop(item) {
     const isMoney = !!(item.attributes & FLAG.MONEY);
     this.player.addItem(item);
-    this.audio.play(isMoney ? 'money' : 'item');
+    // EnemyCollision.c:479-493: 133 always plays for a pickup, and money
+    // stacks 137 on top of it rather than replacing it.
+    this.audio.play('item');
+    if (isMoney) this.audio.play('money');
     this.hudNote = t('FOUND {name}', { name: item.name.toUpperCase() });
     this.noteUntil = this.frame + 50;
 
