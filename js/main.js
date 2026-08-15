@@ -110,6 +110,7 @@ class Game {
 
   enter(index, spawnX = null, spawnY = null) {
     this.doorLatch = null;
+    this.lastMessageEntity = null;
     this.screenIndex = index;
     this.screen = this.world.screen(index);
     // Bosses need no special casing: they sit in the screen's own enemy slots
@@ -516,28 +517,44 @@ class Game {
       }
 
       // Shop contact trigger (EnemyCollision.c:462-474, Dialogs.c:1762)
-      if (enemy.message < 0 && !player.messageCounter && overlaps(player.body, enemy.body)) {
-        player.messageCounter = 1;
-        const storeIdx = -(enemy.message + 1);
-        if (this.stores[storeIdx]) {
-          this.currentStore = this.stores[storeIdx];
-          this.ui.toggleShop(true);
+      if (enemy.message < 0) {
+        const isTouching = overlaps(player.body, enemy.body);
+        if (isTouching) {
+          if (this.lastMessageEntity !== enemy && !player.messageCounter) {
+            this.lastMessageEntity = enemy;
+            player.messageCounter = 1;
+            const storeIdx = -(enemy.message + 1);
+            if (this.stores[storeIdx]) {
+              this.currentStore = this.stores[storeIdx];
+              this.ui.toggleShop(true);
+            }
+          }
+          continue;
+        } else if (this.lastMessageEntity === enemy) {
+          this.lastMessageEntity = null;
         }
-        continue;
       }
 
       // Dialog contact trigger (EnemyCollision.c:462-474, Dialogs.c:186)
-      if (enemy.message > 0 && !enemy.holdable && !player.messageCounter && overlaps(player.body, enemy.body)) {
-        player.messageCounter = 1;
-        let text = this.textMsgs[enemy.message - 1] || '';
-        if (enemy.message === 5 && enemy.drop) {
-          const dropItem = getItem(enemy.drop);
-          if (dropItem) text += dropItem.name;
+      if (enemy.message > 0 && !enemy.holdable) {
+        const isTouching = overlaps(player.body, enemy.body);
+        if (isTouching) {
+          if (this.lastMessageEntity !== enemy && !player.messageCounter) {
+            this.lastMessageEntity = enemy;
+            player.messageCounter = 1;
+            let text = this.textMsgs[enemy.message - 1] || '';
+            if (enemy.message === 5 && enemy.drop) {
+              const dropItem = getItem(enemy.drop);
+              if (dropItem) text += dropItem.name;
+            }
+            if (text) {
+              this.ui.showDialog('', text);
+            }
+          }
+          continue;
+        } else if (this.lastMessageEntity === enemy) {
+          this.lastMessageEntity = null;
         }
-        if (text) {
-          this.ui.showDialog('', text);
-        }
-        continue;
       }
 
       // Locked doors cannot be cut or shot open; only a key opens them.
