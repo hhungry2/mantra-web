@@ -52,6 +52,11 @@ export class Enemy {
     this.drop = record.drop;
     this.message = record.message;
     this.attributes = record.attributes;
+    this.immunities = record.immunities || 0;
+    this.damageType = record.damageType || 0;
+    this.movePhase = record.movePhase || 0;
+    this.target = record.target || 0;
+    this.pushableSpeed = record.pushableSpeed || 0;
     this.boss = !!(this.attributes & ATTR.IS_BOSS);
     this.killable = !!(record.attributes & ATTR.KILLABLE);
     this.solid = !(record.attributes & ATTR.INSUBSTANTIAL);
@@ -69,7 +74,6 @@ export class Enemy {
     this.vy = 0;
     this.retarget = 0;
     this.cooldown = 0;
-    this.fireCounter = record.rate || 0;
     this.animTimer = 0;
     this.flash = 0;
     this.knock = null;
@@ -105,6 +109,7 @@ export class Enemy {
     const actual = Math.max(1, amount - Math.max(0, this.armor));
     this.hp -= actual;
     this.flash = HIT_FLASH;
+    this.legCounter = 0; // Input.c:879: enemy legCounter reset to 0 on hit
     const dx = this.x - fromX;
     const dy = this.y - fromY;
     const len = Math.hypot(dx, dy) || 1;
@@ -115,9 +120,6 @@ export class Enemy {
 
   update(ctx) {
     this.animTimer++;
-    // legState flips every fourth frame, which is the walking shuffle.
-    this.legCounter++;
-    if (this.legCounter % 4 === 0) this.legState = 1 - this.legState;
     if (this.flash > 0) this.flash--;
     if (this.knock) {
       ctx.move(this, this.knock.x, this.knock.y);

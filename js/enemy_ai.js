@@ -74,14 +74,6 @@ function fireAtPlayer(enemy, ctx, speed = 3) {
                       enemy.damage, enemy.fires);
 }
 
-// rateOfFire counts down in frames; 0 means the enemy never shoots.
-function maybeFire(enemy, ctx, speed) {
-  if (!enemy.rate || !enemy.fires) return;
-  if (enemy.fireCounter > 0) { enemy.fireCounter--; return; }
-  enemy.fireCounter = enemy.rate * 4;
-  fireAtPlayer(enemy, ctx, speed);
-}
-
 function ring(enemy, ctx, count, speed) {
   for (let i = 0; i < count; i++) {
     const a = (Math.PI * 2 * i) / count + (enemy.animTimer || 0) * 0.05;
@@ -244,5 +236,23 @@ const ROUTINES = {
 };
 
 export function run(enemy, ctx) {
+  if (enemy.ai !== AI.DYING && enemy.ai < 50) {
+    // EnemyUpdate.c:371-395: Common shooting block and walking shuffle
+    enemy.legCounter++;
+    if (enemy.legCounter >= 32) {
+      if ((enemy.attributes & 8) === 8 && enemy.fires) {
+        const rate = enemy.rate || 0;
+        // shortRand() % (17 - rateOfFire) == 0 (EnemyUpdate.c:374)
+        const denom = Math.max(1, 17 - rate);
+        if (Math.floor(Math.random() * denom) === 0) {
+          fireAtPlayer(enemy, ctx);
+        }
+      }
+      enemy.legCounter = 16;
+    }
+    if (enemy.legCounter % 4 === 0) {
+      enemy.legState = 1 - enemy.legState;
+    }
+  }
   (ROUTINES[enemy.ai] || ROUTINES[AI.RANDOM])(enemy, ctx);
 }
