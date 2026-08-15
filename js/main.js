@@ -734,14 +734,19 @@ function run(game) {
   let accumulator = 0;
 
   function loop(now) {
-    accumulator += now - previous;
-    previous = now;
-    let steps = Math.min(Math.floor(accumulator / FRAME_MS), MAX_CATCHUP_FRAMES);
-    accumulator -= steps * FRAME_MS;
-    if (accumulator > FRAME_MS * MAX_CATCHUP_FRAMES) accumulator = 0;
-    while (steps-- > 0) game.tick();
-    game.draw();
-    requestAnimationFrame(loop);
+    try {
+      accumulator += now - previous;
+      previous = now;
+      let steps = Math.min(Math.floor(accumulator / FRAME_MS), MAX_CATCHUP_FRAMES);
+      accumulator -= steps * FRAME_MS;
+      if (accumulator > FRAME_MS * MAX_CATCHUP_FRAMES) accumulator = 0;
+      while (steps-- > 0) game.tick();
+      game.draw();
+    } catch (err) {
+      console.error('Unhandled game loop error:', err);
+    } finally {
+      requestAnimationFrame(loop);
+    }
   }
 
   requestAnimationFrame(loop);
