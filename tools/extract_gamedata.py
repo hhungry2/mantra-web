@@ -157,16 +157,21 @@ def read_enemy(rec):
         'damage': struct.unpack('>b', rec[21:22])[0],
         'xp': struct.unpack('>H', rec[22:24])[0],
         'attributes': struct.unpack('>i', rec[24:28])[0],
+        'immunities': struct.unpack('>h', rec[28:30])[0],
+        'damageType': struct.unpack('>h', rec[30:32])[0],
         'speed': struct.unpack('>b', rec[32:33])[0],
+        'movePhase': struct.unpack('>b', rec[33:34])[0],
         'range': rec[34],                                    # gaurdianRange
         'facing': struct.unpack('>b', rec[35:36])[0],
         'rate': rec[36],                                     # rateOfFire
         'sprite': struct.unpack('>h', rec[38:40])[0],
         'ai': struct.unpack('>h', rec[40:42])[0],            # movementType
         'drop': rec[42],                                     # deadItem
+        'target': struct.unpack('>b', rec[43:44])[0],
         'r': struct.unpack('>h', rec[44:46])[0],             # originalPosition.v
         'c': struct.unpack('>h', rec[46:48])[0],             # originalPosition.h
         'fires': struct.unpack('>h', rec[48:50])[0],         # firedEnemy
+        'pushableSpeed': struct.unpack('>h', rec[50:52])[0],
         'message': struct.unpack('>h', rec[58:60])[0],
     }
 
@@ -285,6 +290,8 @@ def extract_items(gamedata):
             'heal': struct.unpack('>b', rec[531:532])[0],
             'quantity': struct.unpack('>h', rec[532:534])[0],
             'fires': struct.unpack('>H', rec[536:538])[0],
+            'immunities': struct.unpack('>h', rec[538:540])[0],
+            'damageType': struct.unpack('>h', rec[540:542])[0],
         })
     write_json(os.path.join(DATA_DIR, 'items.json'), {'items': items})
     print(f'items.json: {len(items)} items')
