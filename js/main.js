@@ -374,6 +374,11 @@ class Game {
         const missileFacing = player.dir === 1 ? 1 : (player.dir === 2 ? 2 : (player.dir === 0 ? 3 : 4));
         const missile = createEnemyFromTemplate(template, player.x + dx * 32, player.y + dy * 32, missileFacing, ~ATTR.IS_ENEMY);
         missile.damage = item.damage || template.damage;
+        // Enemies.c:597: saricFireEnemy() strips isEnemy, but that bit is not
+        // a reliable "did Saric fire this" flag - 110 of the 586 placed
+        // entities (signposts, shopkeepers, props) lack it too. Tag it
+        // explicitly instead of inferring it from the bit's absence.
+        missile.firedByPlayer = true;
         this.enemies.push(missile);
       }
     }
@@ -386,6 +391,7 @@ class Game {
         const missileFacing = player.dir === 1 ? 1 : (player.dir === 2 ? 2 : (player.dir === 0 ? 3 : 4));
         const missile = createEnemyFromTemplate(template, player.x + dx * 32, player.y + dy * 32, missileFacing, ~ATTR.IS_ENEMY);
         missile.damage = item.damage || template.damage;
+        missile.firedByPlayer = true;
         this.enemies.push(missile);
         this.audio.play('sword');
       }
@@ -427,8 +433,12 @@ class Game {
       enemy.update(ctx);
       if (enemy.dead) continue;
 
-      // Player-fired missiles hit enemies
-      if (!(enemy.attributes & ATTR.IS_ENEMY)) {
+      // Player-fired missiles hit enemies (EnemyCollision.c:678-793:
+      // checkEnemyInterceptWithEnemies). Gated on the explicit flag, not on
+      // a missing isEnemy bit - that bit is also absent on ordinary
+      // signposts, shopkeepers and item props, which must still fall
+      // through to the checks below.
+      if (enemy.firedByPlayer) {
         for (const target of this.enemies) {
           if (target.dead || target === enemy || !(target.attributes & ATTR.IS_ENEMY)) continue;
           if (!target.killable || target.ai === AI.DOOR) continue;
@@ -436,7 +446,8 @@ class Game {
             const killed = target.hurt(enemy.damage, enemy.damageType, enemy.x, enemy.y);
             this.audio.play(killed ? 'kill' : 'hit');
             if (killed) this.defeat(target);
-            enemy.dead = true;
+            // EnemyCollision.c:727-730: only a missile dies on impact.
+            if (enemy.attributes & ATTR.IS_MISSILE) enemy.dead = true;
             break;
           }
         }

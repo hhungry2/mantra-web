@@ -30,17 +30,16 @@
 
 ## 2. 敵の飛び道具発射 (`canFire` / `fireEnemy`)
 
-通常敵の射撃は、毎フレームではなく歩行アニメーション周期 `legCounter >= 32` に達した瞬間（歩行アニメーション1周＝約32フレーム）に判定される。
+通常敵の射撃は、ほぼ全ての移動ルーチンに共通する定型ブロックとして判定される。毎フレームではなく、`legCounter` が 16↔32 を往復するカウンタの **32到達時**（＝16フレームに1回）にだけ抽選が走る。
 
-- 発射条件: `(attributes & canFire) && (legCounter >= 32)`
-- 射撃確率:
-  - `firePhase == 0`: `(generateRand() & 0x0F) == 0` (1/16)
-  - `firePhase != 0`: `(generateRand() & 0x07) == 0` (1/8)
-- 敵の弾丸は敵テンプレート（`enemies.json`）からインスタンス化され、`isMissile` 属性が付与される。
+- 発射条件: `(attributes & canFire) == canFire && legCounter >= 32`
+- 射撃確率: `shortRand() % (17 - rateOfFire) == 0`（`rateOfFire` が大きいほど頻繁。0なら1/17、16なら毎回）
+- 抽選後、`legCounter` は 0 ではなく **16** に戻る（32との往復を維持するため）。
+- 敵の弾丸は敵テンプレート（`enemies.json`）からインスタンス化され、テンプレート自身の `isMissile` 属性を引き継ぐ。
 
 参照:
-- `src/EnemyUpdate.c:138-164` — 射撃ゲートと発射処理
-- `src/EnemyUpdate.c:30-76` — `fireEnemy()` 関数
+- `src/EnemyUpdate.c:359-395`（`randomMonster`）ほか各移動ルーチンに同一ブロックが重複して存在
+- `src/Enemies.c:291-435` — `fireEnemy()` 関数（テンプレートからの生成処理）
 
 ---
 
