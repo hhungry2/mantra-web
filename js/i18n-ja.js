@@ -59,10 +59,8 @@ export default {
     'Your Items': 'あなたのアイテム',
     'Nothing for sale here.': 'ここで売っているものはありません。',
     'No items owned.': '所持アイテムはありません。',
-    'Nothing to sell.': '売れるものはありません。',
     '{price} Gold': 'ゴールド {price}',
     'Buy': '買う',
-    'Sell': '売る',
 
     // Save / Load
     'SAVE / LOAD GAME': 'セーブ / ロード',
