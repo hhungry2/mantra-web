@@ -86,8 +86,13 @@ export class Enemy {
   }
 
   get body() {
-    const size = this.boss ? BOSS_BODY : BODY_W;
-    return box(this.x, this.y, size, this.boss ? BOSS_BODY : BODY_H);
+    // EnemyCollision.c tests every normal enemy, including missiles, against
+    // its 32x32 `where` rectangle and pixel mask. Keep the smaller visible
+    // body for ordinary contact, but do not let flying missiles pass through
+    // Saric with the 20x16 approximation.
+    const size = this.boss ? BOSS_BODY : (this.isMissile ? TILE : BODY_W);
+    const height = this.boss ? BOSS_BODY : (this.isMissile ? TILE : BODY_H);
+    return box(this.x, this.y, size, height);
   }
 
   // The original stores two frames per facing after the spriteRef. BossData
