@@ -389,7 +389,11 @@ class Game {
     }
 
     const door = this.world.doorAt(this.screen, player.x, player.y);
-    if (door && door.screen !== this.screenIndex) {
+    const onDifferentDoorTile = door
+      && (door.screen !== this.screenIndex
+        || door.tileX !== playerTileX
+        || door.tileY !== playerTileY);
+    if (onDifferentDoorTile) {
       // The original C source plays no effect when warping through a door,
       // so the transition is silent here too.
       this.enter(door.screen, door.tileX * TILE + TILE / 2, door.tileY * TILE + TILE / 2);
