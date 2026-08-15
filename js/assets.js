@@ -20,7 +20,7 @@ async function loadJSON(src) {
 }
 
 export async function loadAssets() {
-  const [tiles, sprites, bosses, icons, win, lose, map, gfx, items, stores, text] =
+  const [tiles, sprites, bosses, icons, win, lose, map, gfx, items, stores, text, enemies] =
     await Promise.all([
       loadImage(BASE + 'tiles.png'),
       loadImage(BASE + 'sprites.png'),
@@ -33,17 +33,20 @@ export async function loadAssets() {
       loadJSON(BASE + 'data/items.json'),
       loadJSON(BASE + 'data/stores.json'),
       loadJSON(BASE + 'data/text.json'),
+      loadJSON(BASE + 'data/enemies.json'),
     ]);
 
   const tileIndex = new Map(gfx.tiles.ids.map((id, i) => [id, i]));
   const spriteIndex = new Map(gfx.sprites.ids.map((id, i) => [id, i]));
   const iconIndex = new Map(gfx.icons32.ids.map((id, i) => [id, i]));
+  const templates = new Map(enemies.templates.map((t) => [t.id, t]));
 
   return {
     tiles, sprites, bosses, icons, win, lose, map, gfx,
     items: items.items.map(localizeItem),
     stores: localizeStores(stores.stores),
     textMsgs: localizeMessages(text),
+    templates,
     tileIndex, spriteIndex, iconIndex,
   };
 }

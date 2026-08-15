@@ -62,6 +62,7 @@ export class Enemy {
     this.solid = !(record.attributes & ATTR.INSUBSTANTIAL);
     this.holdable = !!(record.attributes & ATTR.CAN_BE_HELD);
     this.multiFacing = !!(record.attributes & ATTR.IS_MULTI_FACING);
+    this.isMissile = !!(this.attributes & ATTR.IS_MISSILE);
     this.facing = Number.isFinite(record.facing) ? record.facing : 0;
     this.x = record.c * TILE + (this.boss ? TILE : TILE / 2);
     this.y = record.r * TILE + (this.boss ? TILE : TILE / 2);
@@ -141,56 +142,23 @@ export class Enemy {
   }
 }
 
-export class EnemyProjectile {
-  constructor(x, y, vx, vy, damage, sprite) {
-    this.x = x;
-    this.y = y;
-    this.vx = vx;
-    this.vy = vy;
-    this.damage = Math.max(1, damage);
-    this.sprite = sprite || 0;
-    this.lifetime = 120;
-    this.dead = false;
-  }
-
-  get body() {
-    return box(this.x, this.y, 8, 8);
-  }
-
-  update(world, screen) {
-    this.x += this.vx;
-    this.y += this.vy;
-    this.lifetime--;
-    if (this.lifetime <= 0 || world.isSolidPixel(screen, Math.round(this.x), Math.round(this.y))) {
-      this.dead = true;
-    }
-  }
-}
-
-export class PlayerProjectile {
-  constructor(x, y, vx, vy, damage, sprite) {
-    this.x = x;
-    this.y = y;
-    this.vx = vx;
-    this.vy = vy;
-    this.damage = Math.max(1, damage);
-    this.sprite = sprite || 0;
-    this.lifetime = 120;
-    this.dead = false;
-  }
-
-  get body() {
-    return box(this.x, this.y, 8, 8);
-  }
-
-  update(world, screen) {
-    this.x += this.vx;
-    this.y += this.vy;
-    this.lifetime--;
-    if (this.lifetime <= 0 || world.isSolidPixel(screen, Math.round(this.x), Math.round(this.y))) {
-      this.dead = true;
-    }
-  }
+export function createEnemyFromTemplate(template, x, y, facing, attributesMask = ~0) {
+  const record = {
+    ...template,
+    r: 0,
+    c: 0,
+  };
+  const enemy = new Enemy(record, -1);
+  enemy.x = x;
+  enemy.y = y;
+  enemy.spawnX = x;
+  enemy.spawnY = y;
+  enemy.facing = facing;
+  enemy.attributes = (enemy.attributes & ~ATTR.ORIGINAL_TO_ROOM) & attributesMask;
+  enemy.solid = !(enemy.attributes & ATTR.INSUBSTANTIAL);
+  enemy.killable = !!(enemy.attributes & ATTR.KILLABLE);
+  enemy.isMissile = !!(enemy.attributes & ATTR.IS_MISSILE);
+  return enemy;
 }
 
 // The dying body the original leaves when an enemy is killed: template 2056

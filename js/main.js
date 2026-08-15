@@ -8,7 +8,7 @@ import { World, MOD } from './map.js';
 import { Renderer } from './renderer.js';
 import { Input } from './input.js';
 import { Saric, DIR_VECTORS } from './saric.js';
-import { spawnScreen, makeMover, EnemyProjectile, PlayerProjectile, Corpse, ATTR } from './enemy.js';
+import { spawnScreen, makeMover, Corpse, ATTR, createEnemyFromTemplate } from './enemy.js';
 import { BOSS_NAMES, AI } from './enemy_ai.js';
 import { overlaps, box } from './collision.js';
 import { Audio } from './audio.js';
@@ -45,6 +45,7 @@ class Game {
     this.gfx = assets.gfx;
     this.textMsgs = assets.textMsgs || [];
     this.stores = assets.stores || [];
+    this.templates = assets.templates || new Map();
     this.currentStore = null;
     this.input = new Input();
     this.audio = new Audio();
@@ -60,7 +61,6 @@ class Game {
     this.ui = new UI(this);
 
     this.screenIndex = START_SCREEN;
-    this.projectiles = [];
     this.corpses = [];
     this.victory = false;
     this.mantrasReady = false;
@@ -106,9 +106,7 @@ class Game {
     // Bosses need no special casing: they sit in the screen's own enemy slots
     // with a movementType of 50 or above.
     this.enemies = spawnScreen(this.screen, this.defeatedMasks[index]);
-    this.projectiles = [];
     this.corpses = [];
-    this.playerProjectiles = [];
     // Locked doors keep their bodies on the movement collision layer until
     // a key opens them. Bodies are captured once and reused by reference.
     this.world.closedDoors = [];
@@ -121,7 +119,6 @@ class Game {
     this.move = makeMover(this.world, this.screen);
 
     if (this.audio.ctx) this.audio.playMusic(this.world.musicIndexAt(this.screen));
-
     if (spawnX !== null && this.player) this.player.x = spawnX;
     if (spawnY !== null && this.player) this.player.y = spawnY;
   }
@@ -207,6 +204,43 @@ class Game {
 
   // Chests and the things lying about are enemies flagged canBeHeld: walking
   // into one hands over whatever deadItem names.
+    const index = tile - SHOP_TILE_BASE;
+    if (index < 0 || index >= this.stores.length) return null;
+    return this.stores[index];
+  }
+
+  checkInteract() {
+    const player = this.player;
+    const tx = Math.max(0, Math.min(15, Math.floor(player.x / TILE)));
+    const ty = Math.max(0, Math.min(9, Math.floor(player.y / TILE)));
+    const mod = this.world.modifierAt(this.screen, tx, ty);
+    const tile = this.world.tileAt(this.screen, tx, ty);
+
+    // Signposts and the people standing about are enemies that carry a message
+    // number into TextData.
+    const speaker = this.enemies.find((e) => e.message > 0
+      && Math.hypot(e.x - player.x, e.y - player.y) < READ_RANGE);
+    if (speaker) {
+      const text = this.textMsgs[speaker.message - 1];
+      if (text) {
+        this.ui.showDialog('', text);
+        return;
+      }
+    }
+
+    const store = this.storeAt(tile, mod);
+    if (store) {
+      this.currentStore = store;
+      this.ui.toggleShop(true);
+      return;
+    }
+
+    this.hudNote = t('NOTHING HERE');
+    this.noteUntil = this.frame + 25;
+  }
+
+  // Chests and the things lying about are enemies flagged canBeHeld: walking
+  // into one hands over whatever deadItem names.
   //
   // A few of them are people rather than props - the dying man on the first
   // screen presses his dagger on you - and those carry a message as well. It
@@ -214,7 +248,9 @@ class Game {
   // so say it here rather than leaving it to the read key.
   collect(enemy) {
     enemy.dead = true;
-    this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
+    if (enemy.slotIndex >= 0) {
+      this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
+    }
     const item = getItem(enemy.drop);
     if (!item) return;
     const isMoney = !!(item.attributes & FLAG.MONEY);
@@ -228,16 +264,17 @@ class Game {
   }
 
   // A slain enemy stays slain, hands over its experience, and leaves a dying
-  // body behind - the death animation in the original's killCurrentEnemy -
-  // carrying whatever deadItem names. The drop is picked up off the body, so
-  // it is not handed over here.
+  // body behind - the death animation in the original's killCurrentEnemy.
   defeat(enemy) {
-    this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
-    const leveledUp = this.player.addXp(enemy.xp);
-    // Door enemies vanish outright when they give way - killCurrentEnemy
-    // returns early for them in the original - so no body is left behind.
+    if (enemy.slotIndex >= 0) {
+      this.defeatedMasks[this.screenIndex] |= (1 << enemy.slotIndex);
+    }
+    // Input.c:873: missiles do not award XP
+    const isMissile = !!(enemy.attributes & ATTR.IS_MISSILE);
+    const leveledUp = isMissile ? false : this.player.addXp(enemy.xp);
+    // Door enemies and missiles vanish outright (Enemies.c:172) - no body left behind.
     // Copper pennies are pocketed on the spot too, without a visible drop.
-    if (enemy.ai !== AI.DOOR) {
+    if (enemy.ai !== AI.DOOR && !isMissile) {
       const drop = getItem(enemy.drop);
       if (drop && POCKETED_COINS.has(drop.code)) this.giveDrop(drop);
       else this.corpses.push(new Corpse(enemy, drop));
@@ -252,17 +289,6 @@ class Game {
       this.hudNote = t('LEVEL UP!');
       this.noteUntil = this.frame + 60;
     }
-  }
-
-  // Picking a drop off a corpse: walking over it, or the body landing on
-  // ground too rough to sit on (the original checks at legCounter == 14).
-  // Only the drop goes; the dying body stays until its 250 frames are up -
-  // the original only zeroes health when movementType is not dyingEnemy.
-  collectDrop(corpse) {
-    const item = corpse.drop;
-    corpse.drop = null;
-    if (!item) return;
-    this.giveDrop(item);
   }
 
   giveDrop(item) {
@@ -386,17 +412,16 @@ class Game {
 
     if (this.input.ranged) {
       const item = player.fireRanged();
-      if (item) {
-        const [dx, dy] = DIR_VECTORS[player.dir];
-        this.playerProjectiles.push(new PlayerProjectile(
-          player.x + dx * 16,
-          player.y + dy * 16,
-          dx * 5,
-          dy * 5,
-          item.damage,
-          item.fires,
-        ));
-        this.audio.play('sword');
+      if (item && item.fires) {
+        const template = this.templates.get(item.fires);
+        if (template) {
+          const [dx, dy] = DIR_VECTORS[player.dir];
+          const missileFacing = player.dir === 1 ? 1 : (player.dir === 2 ? 2 : (player.dir === 0 ? 3 : 4));
+          const missile = createEnemyFromTemplate(template, player.x + dx * 32, player.y + dy * 32, missileFacing, ~ATTR.IS_ENEMY);
+          missile.damage = item.damage || template.damage;
+          this.enemies.push(missile);
+          this.audio.play('sword');
+        }
       } else {
         // Off-hand items without a missile (the Key, the Mantras) carry a
         // special routine instead - the original's runItemSpecialRoutine.
@@ -422,16 +447,13 @@ class Game {
       }
     }
 
-    const spawnProj = (x, y, vx, vy, damage, sprite) => {
-      this.projectiles.push(new EnemyProjectile(x, y, vx, vy, damage, sprite));
-    };
-
     const ctx = {
       world: this.world,
       screen: this.screen,
       player,
+      templates: this.templates,
+      enemies: this.enemies,
       move: this.move,
-      spawnProjectile: spawnProj,
     };
     const sword = player.swordBox;
 
@@ -439,6 +461,23 @@ class Game {
     for (const enemy of this.enemies) {
       if (enemy.dead) continue;
       enemy.update(ctx);
+      if (enemy.dead) continue;
+
+      // Player-fired missiles hit enemies
+      if (!(enemy.attributes & ATTR.IS_ENEMY)) {
+        for (const target of this.enemies) {
+          if (target.dead || target === enemy || !(target.attributes & ATTR.IS_ENEMY)) continue;
+          if (!target.killable || target.ai === AI.DOOR) continue;
+          if (overlaps(enemy.body, target.body)) {
+            const killed = target.hurt(enemy.damage, enemy.x, enemy.y);
+            this.audio.play(killed ? 'kill' : 'hit');
+            if (killed) this.defeat(target);
+            enemy.dead = true;
+            break;
+          }
+        }
+        continue;
+      }
 
       if (enemy.holdable && overlaps(player.body, enemy.body)) {
         this.collect(enemy);
@@ -456,14 +495,15 @@ class Game {
         if (player.hurt(enemy.damage, enemy.x, enemy.y)) {
           this.audio.play(player.dead ? 'die' : 'hurt');
         }
+        if (enemy.attributes & ATTR.IS_MISSILE) {
+          enemy.dead = true;
+        }
       }
     }
 
     this.enemies = this.enemies.filter((e) => !e.dead);
 
-    // Dying bodies from defeated enemies. The drop stays on the body until it
-    // is walked over, or is handed straight over when the body lands on
-    // ground too rough to sit on.
+    // Dying bodies from defeated enemies.
     for (const corpse of this.corpses) {
       if (corpse.dead) continue;
       corpse.update();
@@ -477,36 +517,6 @@ class Game {
       }
     }
     this.corpses = this.corpses.filter((c) => !c.dead);
-
-    // Player-fired missiles use the equipped off-hand item's damage and
-    // projectile sprite, and can defeat enemies from a distance.
-    for (const proj of this.playerProjectiles) {
-      if (proj.dead) continue;
-      proj.update(this.world, this.screen);
-      if (proj.dead) continue;
-      for (const enemy of this.enemies) {
-        if (enemy.dead || !enemy.killable || enemy.ai === AI.DOOR || !overlaps(proj.body, enemy.body)) continue;
-        const killed = enemy.hurt(proj.damage, player.x, player.y);
-        this.audio.play(killed ? 'kill' : 'hit');
-        if (killed) this.defeat(enemy);
-        proj.dead = true;
-        break;
-      }
-    }
-    this.playerProjectiles = this.playerProjectiles.filter((p) => !p.dead);
-
-    // Update Projectiles
-    for (const proj of this.projectiles) {
-      if (proj.dead) continue;
-      proj.update(this.world, this.screen);
-      if (!proj.dead && overlaps(player.body, proj.body)) {
-        if (player.hurt(proj.damage, proj.x, proj.y)) {
-          this.audio.play(player.dead ? 'die' : 'hurt');
-        }
-        proj.dead = true;
-      }
-    }
-    this.projectiles = this.projectiles.filter((p) => !p.dead);
 
     // The Ambassador's letters set the quest: find the five Mantras and bring
     // them to Castle Blednock.
@@ -528,8 +538,6 @@ class Game {
     r.drawScreen(this.screen);
     r.drawCorpses(this.corpses);
     r.drawEntities(this.player, this.enemies);
-    r.drawProjectiles(this.playerProjectiles);
-    r.drawProjectiles(this.projectiles);
 
     const gridX = this.screenIndex % 16;
     const gridY = Math.floor(this.screenIndex / 16);

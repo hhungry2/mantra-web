@@ -132,18 +132,6 @@ export class Renderer {
     for (const d of drawables) d.draw();
   }
 
-  drawProjectiles(projectiles) {
-    for (const p of projectiles) {
-      if (p.dead) continue;
-      if (p.sprite) {
-        this.drawSprite(p.sprite, p.x - SPRITE / 2, p.y - SPRITE / 2);
-      } else {
-        this.ctx.fillStyle = '#ffb703';
-        this.ctx.fillRect(Math.round(p.x) - 3, Math.round(p.y) - 3, 6, 6);
-      }
-    }
-  }
-
   drawHud(player, info) {
     const ctx = this.ctx;
     const top = VIEW_H;

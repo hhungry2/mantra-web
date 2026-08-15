@@ -3,6 +3,9 @@
 // The names and ids are the original's (GameTypes.h): every enemy on a screen
 // carries a movementType, and the eight above 50 are the bosses.
 
+import { box } from './collision.js';
+import { createEnemyFromTemplate, ATTR } from './enemy.js';
+
 export const AI = {
   NONE: 0,
   RANDOM: 1,
@@ -66,20 +69,73 @@ function distanceToPlayer(enemy, ctx) {
   return Math.hypot(ctx.player.x - enemy.x, ctx.player.y - enemy.y);
 }
 
-function fireAtPlayer(enemy, ctx, speed = 3) {
-  const dx = ctx.player.x - enemy.x;
-  const dy = ctx.player.y - enemy.y;
-  const len = Math.hypot(dx, dy) || 1;
-  ctx.spawnProjectile(enemy.x, enemy.y, (dx / len) * speed, (dy / len) * speed,
-                      enemy.damage, enemy.fires);
-}
+// fireEnemy (Enemies.c:291-435): spawns a full enemy from a template
+export function fireEnemy(enemy, ctx, templateId = null, testStuck = true, isBossMissile = false) {
+  const tid = templateId ?? enemy.fires;
+  if (!tid) return null;
+  const template = ctx.templates?.get(tid);
+  if (!template) return null;
 
-function ring(enemy, ctx, count, speed) {
-  for (let i = 0; i < count; i++) {
-    const a = (Math.PI * 2 * i) / count + (enemy.animTimer || 0) * 0.05;
-    ctx.spawnProjectile(enemy.x, enemy.y, Math.cos(a) * speed, Math.sin(a) * speed,
-                        enemy.damage, enemy.fires);
+  // Enemies.c:300 - MAX_ENEMIES_ON_SCREEN = 16
+  const activeCount = ctx.enemies ? ctx.enemies.filter((e) => !e.dead).length : 0;
+  if (activeCount >= 16) return null;
+
+  let sx = enemy.x;
+  let sy = enemy.y;
+  const whichOutlet = Math.floor(Math.random() * 2);
+
+  // Enemies.c:352-405
+  // enemy.facing: 0/1 right (+32), 2 down (+32), 3 left (-32), 4 up (-32)
+  const isBoss = enemy.boss || (enemy.attributes & ATTR.IS_BOSS);
+  switch (enemy.facing) {
+    case 0:
+    case 1:
+      if (isBoss) {
+        sx += 64;
+        sy += 32 * whichOutlet;
+      } else {
+        sx += 32;
+      }
+      break;
+    case 2:
+      if (isBoss) {
+        sy += 64;
+        sx += 32 * whichOutlet;
+      } else {
+        sy += 32;
+      }
+      break;
+    case 3:
+      if (isBoss) {
+        sy += 32 * whichOutlet;
+      }
+      sx -= 32;
+      break;
+    case 4:
+      if (isBoss) {
+        sx += 32 * whichOutlet;
+      }
+      sy -= 32;
+      break;
   }
+
+  // Check if missile will get stuck in wall (Enemies.c:411)
+  if (testStuck) {
+    const isBossSize = !!(template.attributes & ATTR.IS_BOSS) || isBossMissile;
+    const size = isBossSize ? 64 : 20;
+    const height = isBossSize ? 64 : 16;
+    if (ctx.world.boxHitsWall(ctx.screen, box(sx, sy, size, height))) {
+      return null;
+    }
+  }
+
+  const missile = createEnemyFromTemplate(template, sx, sy, enemy.facing);
+  if (isBossMissile) {
+    missile.attributes |= ATTR.IS_BOSS;
+    missile.boss = true;
+  }
+  if (ctx.enemies) ctx.enemies.push(missile);
+  return missile;
 }
 
 const ROUTINES = {
@@ -98,8 +154,8 @@ const ROUTINES = {
 
   // Chases while Saric is in sight, wanders otherwise.
   [AI.SMART]: (enemy, ctx) => {
-    if (distanceToPlayer(enemy, ctx) < 160) ROUTINES[AI.HOMING](enemy, ctx);
-    else ROUTINES[AI.RANDOM](enemy, ctx);
+    // EnemyUpdate.c:1066-1103: smartMonster in original does not move
+    // It only stands and shoots per common firing block.
   },
 
   // Holds a post: chases inside gaurdianRange of where it started, walks back
@@ -145,8 +201,22 @@ const ROUTINES = {
   },
 
   [AI.LINEAR]: (enemy, ctx) => {
-    if (!enemy.vx && !enemy.vy) enemy.vx = 1;
-    if (!step(enemy, ctx)) { enemy.vx = -enemy.vx; enemy.vy = -enemy.vy; }
+    if (!enemy.vx && !enemy.vy) {
+      if (enemy.facing === 1) enemy.vx = 1;
+      else if (enemy.facing === 2) enemy.vy = 1;
+      else if (enemy.facing === 3) enemy.vx = -1;
+      else if (enemy.facing === 4) enemy.vy = -1;
+      else enemy.vx = 1;
+    }
+    if (!step(enemy, ctx)) {
+      if (enemy.attributes & ATTR.IS_MISSILE) {
+        enemy.health = 0;
+        enemy.dead = true;
+      } else {
+        enemy.vx = -enemy.vx;
+        enemy.vy = -enemy.vy;
+      }
+    }
   },
 
   [AI.SEMI_BUMP_TURN]: (enemy, ctx) => {
@@ -157,22 +227,54 @@ const ROUTINES = {
     }
   },
 
-  // Sits still, then starts wandering after a while.
-  [AI.WAITING_FOR_TIME]: (enemy, ctx) => {
-    enemy.wait = (enemy.wait || 0) + 1;
-    if (enemy.wait > 100) ROUTINES[AI.RANDOM](enemy, ctx);
-  },
+  // Sits still, then starts wandering after a while (Enemies.c:240 commented out in original)
+  [AI.WAITING_FOR_TIME]: () => {},
 
-  // Sits still until Saric comes close, then never stops chasing.
+  // EnemyUpdate.c:79-99: Sits still until Manhattan distance <= target, then transforms to movePhase
   [AI.WAITING_FOR_SARIC]: (enemy, ctx) => {
-    if (enemy.woken || distanceToPlayer(enemy, ctx) < 96) {
-      enemy.woken = true;
-      ROUTINES[AI.HOMING](enemy, ctx);
+    const manhattan = Math.abs(ctx.player.x - enemy.x) + Math.abs(ctx.player.y - enemy.y);
+    const targetDist = enemy.target > 0 ? enemy.target : 32;
+    if (manhattan <= targetDist) {
+      enemy.ai = enemy.movePhase || AI.HOMING;
     }
   },
 
+  // EnemyUpdate.c:240-355: directFireMonster
   [AI.DIRECT_FIRE]: (enemy, ctx) => {
-    ROUTINES[AI.SEMI_HOMING](enemy, ctx);
+    if (!enemy.angledCourse) {
+      const isSaricMissile = !(enemy.attributes & ATTR.IS_ENEMY);
+      if (isSaricMissile) {
+        let vx = 0;
+        let vy = 0;
+        const speed = enemy.speed || 5;
+        if (enemy.facing === 1) vx = speed;
+        else if (enemy.facing === 2) vy = speed;
+        else if (enemy.facing === 3) vx = -speed;
+        else if (enemy.facing === 4) vy = -speed;
+        else vx = speed;
+        enemy.angledCourse = { h: vx, v: vy };
+      } else {
+        const dx = ctx.player.x - enemy.x;
+        const dy = ctx.player.y - enemy.y;
+        const total = Math.abs(dx) + Math.abs(dy) || 1;
+        const speed = enemy.speed || 3;
+        const h = Math.abs(Math.round((speed * dx) / total)) * (dx < 0 ? -1 : 1);
+        const v = Math.abs(Math.round((speed * dy) / total)) * (dy < 0 ? -1 : 1);
+        enemy.angledCourse = { h, v };
+        if (Math.abs(h) > Math.abs(v)) {
+          enemy.facing = h > 0 ? 1 : 3;
+        } else {
+          enemy.facing = v > 0 ? 2 : 4;
+        }
+      }
+    }
+
+    const moved = ctx.move(enemy, enemy.angledCourse.h, enemy.angledCourse.v);
+    // EnemyUpdate.c:337-343: if stopped and isMissile, die
+    if (!moved && (enemy.attributes & ATTR.IS_MISSILE)) {
+      enemy.health = 0;
+      enemy.dead = true;
+    }
   },
 
   [AI.DYING]: () => {},
@@ -184,30 +286,30 @@ const ROUTINES = {
 
   [AI.HIVE_BOSS]: (enemy, ctx) => {
     ROUTINES[AI.RANDOM](enemy, ctx);
-    if (enemy.cooldown-- <= 0) { enemy.cooldown = 70; ring(enemy, ctx, 6, 3); }
+    if (enemy.cooldown-- <= 0) { enemy.cooldown = 70; fireEnemy(enemy, ctx); }
   },
 
   [AI.CRAB_BOSS]: (enemy, ctx) => {
     if (!enemy.vx) enemy.vx = 1;
     if (!ctx.move(enemy, enemy.vx * enemy.speed * 1.5, 0)) enemy.vx = -enemy.vx;
     ctx.move(enemy, 0, Math.sin((enemy.animTimer || 0) * 0.08) * enemy.speed);
-    if (enemy.cooldown-- <= 0) { enemy.cooldown = 55; fireAtPlayer(enemy, ctx, 3.5); }
+    if (enemy.cooldown-- <= 0) { enemy.cooldown = 55; fireEnemy(enemy, ctx, 2024); }
   },
 
   [AI.BLOB_BOSS]: (enemy, ctx) => {
     ROUTINES[AI.HOMING](enemy, ctx);
-    if (enemy.cooldown-- <= 0) { enemy.cooldown = 90; ring(enemy, ctx, 8, 2.5); }
+    if (enemy.cooldown-- <= 0) { enemy.cooldown = 90; fireEnemy(enemy, ctx); }
   },
 
   // Stays home and shoots.
   [AI.SENTRY_BOSS]: (enemy, ctx) => {
     ROUTINES[AI.CIRCULAR](enemy, ctx);
-    if (enemy.cooldown-- <= 0) { enemy.cooldown = 45; fireAtPlayer(enemy, ctx, 4); }
+    if (enemy.cooldown-- <= 0) { enemy.cooldown = 45; fireEnemy(enemy, ctx, 2007, false, true); }
   },
 
   [AI.LINEAR_BOSS]: (enemy, ctx) => {
     ROUTINES[AI.LINEAR](enemy, ctx);
-    if (enemy.cooldown-- <= 0) { enemy.cooldown = 40; ring(enemy, ctx, 4, 3); }
+    if (enemy.cooldown-- <= 0) { enemy.cooldown = 40; fireEnemy(enemy, ctx); }
   },
 
   // Charges: winds up, then runs Saric down.
@@ -216,21 +318,22 @@ const ROUTINES = {
       enemy.cooldown = 90;
       towards(enemy, ctx.player.x, ctx.player.y);
       enemy.charging = 45;
+      fireEnemy(enemy, ctx, 2040);
     }
     if (enemy.charging > 0) { enemy.charging--; if (!step(enemy, ctx, 3)) enemy.charging = 0; }
   },
 
   [AI.ELEMENTAL_BOSS]: (enemy, ctx) => {
     ROUTINES[AI.SEMI_HOMING](enemy, ctx);
-    if (enemy.cooldown-- <= 0) { enemy.cooldown = 60; ring(enemy, ctx, 5, 3.2); }
+    if (enemy.cooldown-- <= 0) { enemy.cooldown = 60; fireEnemy(enemy, ctx); }
   },
 
   [AI.FINAL_BOSS]: (enemy, ctx) => {
     ROUTINES[AI.HOMING](enemy, ctx);
     if (enemy.cooldown-- <= 0) {
       enemy.cooldown = 50;
-      ring(enemy, ctx, 10, 4);
-      fireAtPlayer(enemy, ctx, 5);
+      fireEnemy(enemy, ctx, 2108);
+      fireEnemy(enemy, ctx, 2035, false, true);
     }
   },
 };
@@ -240,12 +343,12 @@ export function run(enemy, ctx) {
     // EnemyUpdate.c:371-395: Common shooting block and walking shuffle
     enemy.legCounter++;
     if (enemy.legCounter >= 32) {
-      if ((enemy.attributes & 8) === 8 && enemy.fires) {
+      if ((enemy.attributes & ATTR.CAN_FIRE) === ATTR.CAN_FIRE && enemy.fires) {
         const rate = enemy.rate || 0;
         // shortRand() % (17 - rateOfFire) == 0 (EnemyUpdate.c:374)
         const denom = Math.max(1, 17 - rate);
         if (Math.floor(Math.random() * denom) === 0) {
-          fireAtPlayer(enemy, ctx);
+          fireEnemy(enemy, ctx);
         }
       }
       enemy.legCounter = 16;
