@@ -39,7 +39,7 @@ from PIL import Image
 sys.path.append(os.path.dirname(__file__))
 from unpack_dat import load_dat_file, unpackbits, parse_chunks
 
-INPUT_DAT = r'C:\Users\USER\Downloads\Mantra-Windows\Mantra-Windows\GameData.dat'
+INPUT_DAT = r'C:\Users\USER\Downloads\Mantra-Windows\GameData.dat'
 ASSETS_DIR = os.path.join(os.path.dirname(__file__), '..', 'assets')
 DATA_DIR = os.path.join(ASSETS_DIR, 'data')
 
